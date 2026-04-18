@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<!-- ================================================
+     Cyro — SOC Report Generator
+     Realizzato da Sara T.
+     ================================================ -->
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyro</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117; --bg-card: #181a24; --bg-input: #1e2030; --bg-hover: #252838;
+      --border: #2a2d3e; --text: #e1e3ed; --text-secondary: #9399b2; --text-muted: #6c7086;
+      /* BLUE theme */
+      --blue: #5b6acf; --blue-dim: rgba(91,106,207,0.08); --blue-border: rgba(91,106,207,0.4);
+      /* GREEN theme */
+      --green: #22c97a; --green-dim: rgba(34,201,122,0.08); --green-border: rgba(34,201,122,0.4);
+      --green-dark: #16a660; --green-glow: rgba(34,201,122,0.15);
+      /* status */
+      --danger: #f38ba8; --danger-bg: rgba(243,139,168,0.08);
+      --warning: #f9e2af; --warning-bg: rgba(249,226,175,0.08);
+      --success: #a6e3a1; --success-bg: rgba(166,227,161,0.08);
+      --info: #89b4fa; --info-bg: rgba(137,180,250,0.08);
+      --radius: 10px; --radius-sm: 6px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.25); --transition: 0.2s ease;
+      /* active theme */
+      --accent: var(--blue); --accent-dim: var(--blue-dim); --accent-border: var(--blue-border);
+      --border-focus: var(--blue);
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; transition: background 0.4s; }
+    .wrapper { max-width: 720px; margin: 0 auto; padding: 40px 24px 100px; }
+
+    /* ── HEADER ── */
+    .page-header { text-align: center; margin-bottom: 36px; }
+    .page-header .logo { display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:16px; margin-bottom:16px; font-size:26px; transition: background 0.4s; }
+    .page-header h1 { font-size:22px; font-weight:700; letter-spacing:-0.02em; }
+    .page-header p  { font-size:14px; color:var(--text-muted); margin-top:4px; }
+
+    /* ── MODE SELECTOR (landing) ── */
+    #mode-selector { animation: fadeIn .4s ease; }
+    .mode-title { text-align:center; font-size:13px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.1em; font-weight:600; margin-bottom:20px; }
+    .mode-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+    @media(max-width:700px){ .mode-grid{ grid-template-columns:1fr; } }
+    @media(max-width:560px){ .mode-grid{ grid-template-columns:1fr; } }
+
+    .mode-card {
+      border:2px solid var(--border); border-radius:14px; padding:28px 22px;
+      cursor:pointer; background:var(--bg-card); transition:all 0.25s;
+      text-align:center; user-select:none; position:relative; overflow:hidden;
+    }
+    .mode-card::before {
+      content:''; position:absolute; inset:0; opacity:0; transition:opacity 0.25s;
+    }
+    .mode-card:hover { transform:translateY(-3px); box-shadow:0 8px 32px rgba(0,0,0,0.3); }
+    .mode-card.alert-card:hover  { border-color:var(--blue);  }
+    .mode-card.alert-card::before{ background:radial-gradient(ellipse at 50% 0%, rgba(91,106,207,0.12) 0%, transparent 70%); }
+    .mode-card.alert-card:hover::before { opacity:1; }
+    .mode-card.phish-card:hover  { border-color:var(--green); box-shadow:0 8px 32px rgba(34,201,122,0.15); }
+    .mode-card.phish-card::before{ background:radial-gradient(ellipse at 50% 0%, rgba(34,201,122,0.12) 0%, transparent 70%); }
+    .mode-card.phish-card:hover::before { opacity:1; }
+
+    .mode-icon { font-size:44px; margin-bottom:14px; display:block; }
+    .mode-label { font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; padding:3px 10px; border-radius:99px; display:inline-block; margin-bottom:12px; }
+    .alert-card .mode-label { background:rgba(91,106,207,0.15); color:var(--blue); }
+    .phish-card .mode-label { background:rgba(34,201,122,0.15); color:var(--green); }
+    .mode-name { font-size:17px; font-weight:800; color:var(--text); margin-bottom:8px; }
+    .mode-desc { font-size:12px; color:var(--text-muted); line-height:1.6; }
+    .mode-chips { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-top:12px; }
+    .mode-chip { font-size:10px; padding:2px 8px; border-radius:99px; border:1px solid var(--border); color:var(--text-muted); }
+    .alert-card:hover .mode-chip { border-color:rgba(91,106,207,0.3); color:rgba(91,106,207,0.9); }
+    .phish-card:hover .mode-chip { border-color:rgba(34,201,122,0.3); color:rgba(34,201,122,0.9); }
+
+    /* ── BACK BUTTON ── */
+    .back-btn {
+      display:inline-flex; align-items:center; gap:7px;
+      font-size:12px; color:var(--text-muted); cursor:pointer;
+      padding:6px 12px; border-radius:var(--radius-sm);
+      border:1px solid var(--border); background:var(--bg-input);
+      margin-bottom:24px; transition:all var(--transition);
+      user-select:none;
+    }
+    .back-btn:hover { color:var(--text); border-color:#3a3e55; }
+
+    /* ── SECTION BADGE ── */
+    .section-badge {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 14px; border-radius:99px; font-size:11px; font-weight:700;
+      letter-spacing:0.08em; text-transform:uppercase; margin-bottom:24px;
+    }
+    .badge-alert { background:rgba(91,106,207,0.12); color:var(--blue); border:1px solid rgba(91,106,207,0.25); }
+    .badge-phish { background:rgba(34,201,122,0.12); color:var(--green); border:1px solid rgba(34,201,122,0.25); }
+
+    /* ── CARDS ── */
+    .card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:28px; margin-bottom:20px; box-shadow:var(--shadow); }
+    .card.f2-extra { border-color:rgba(91,106,207,0.35); background:rgba(91,106,207,0.04); animation:slideIn .25s ease; }
+
+    /* GREEN card accents */
+    .green-mode .card { border-color:rgba(34,201,122,0.12); }
+    .green-mode .card:hover { border-color:rgba(34,201,122,0.22); }
+
+    @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── SEC HEADERS ── */
+    .sec { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:18px; display:flex; align-items:center; gap:10px; }
+    .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+    .sec .f2-badge { font-size:9px; font-weight:700; letter-spacing:0.08em; background:var(--blue); color:#fff; padding:2px 6px; border-radius:4px; margin-left:-4px; }
+    .blue-mode .sec { color:var(--blue); }
+    .green-mode .sec { color:var(--green); }
+
+    /* ── FORM ── */
+    .fl { margin-bottom:16px; }
+    .fl label { font-size:13px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:6px; }
+    select, input[type="text"], input[type="date"], input[type="time"], textarea {
+      width:100%; background:var(--bg-input); border:1px solid var(--border);
+      border-radius:var(--radius-sm); color:var(--text); font-size:14px;
+      padding:10px 12px; font-family:inherit;
+      transition:border-color var(--transition),box-shadow var(--transition); outline:none;
+    }
+    select:hover, input:hover, textarea:hover { border-color:#3a3e55; }
+    .blue-mode select:focus, .blue-mode input:focus, .blue-mode textarea:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(91,106,207,0.15); }
+    .green-mode select:focus, .green-mode input:focus, .green-mode textarea:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(34,201,122,0.15); }
+    select option { background:var(--bg-card); }
+    textarea { resize:vertical; min-height:80px; }
+
+    .g2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+    @media(max-width:560px){ .g2,.g3{ grid-template-columns:1fr; } }
+
+    /* ── CLASSIFICAZIONE ── */
+    .class-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px; }
+    @media(max-width:560px){ .class-grid{ grid-template-columns:1fr; } }
+    .class-opt { border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px 16px; cursor:pointer; background:var(--bg-input); transition:all var(--transition); user-select:none; }
+    .class-opt:hover { border-color:#3a3e55; background:var(--bg-hover); }
+    .class-opt .class-title { font-weight:600; font-size:13px; color:var(--text); margin-bottom:4px; }
+    .class-desc { font-size:11px; color:var(--text-muted); line-height:1.4; }
+    .class-opt.sel-vp { border-color:var(--danger);  background:var(--danger-bg);  } .class-opt.sel-vp .class-title  { color:var(--danger); }
+    .class-opt.sel-fp { border-color:var(--warning); background:var(--warning-bg); } .class-opt.sel-fp .class-title  { color:var(--warning); }
+    .class-opt.sel-vn { border-color:var(--success); background:var(--success-bg); } .class-opt.sel-vn .class-title  { color:var(--success); }
+    .class-opt.sel-fn { border-color:var(--info);    background:var(--info-bg);    } .class-opt.sel-fn .class-title  { color:var(--info);    }
+    .class-label { font-size:13px; color:var(--text-secondary); margin-bottom:10px; }
+
+    /* ── FORMAT PICKER (alert) ── */
+    .format-picker { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:28px; }
+    @media(max-width:560px){ .format-picker{ grid-template-columns:1fr; } }
+    .fmt-btn { border:2px solid var(--border); border-radius:var(--radius); padding:20px 18px; cursor:pointer; background:var(--bg-card); transition:all var(--transition); text-align:left; user-select:none; }
+    .fmt-btn:hover { border-color:#3a3e55; background:var(--bg-hover); }
+    .fmt-btn.active { border-color:var(--blue); background:rgba(91,106,207,0.08); }
+    .fmt-btn .fmt-tag { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:3px 8px; border-radius:4px; background:var(--bg-input); color:var(--text-muted); margin-bottom:10px; }
+    .fmt-btn.active .fmt-tag { background:var(--blue); color:#fff; }
+    .fmt-btn .fmt-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:6px; }
+    .fmt-btn .fmt-desc  { font-size:12px; color:var(--text-muted); line-height:1.5; }
+    .fmt-btn .fmt-extras { margin-top:10px; display:flex; flex-wrap:wrap; gap:5px; }
+    .fmt-chip { font-size:10px; padding:2px 7px; border-radius:99px; border:1px solid var(--border); color:var(--text-muted); }
+    .fmt-btn.active .fmt-chip { border-color:rgba(91,106,207,0.4); color:var(--blue); }
+
+    /* ── NOTE FISSE ── */
+    .fixed-note { font-size:13px; color:var(--text-secondary); background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px 16px; margin-top:6px; font-style:italic; line-height:1.5; }
+    .blue-mode  .fixed-note { border-left:3px solid var(--blue); }
+    .green-mode .fixed-note { border-left:3px solid var(--green); }
+    .helper-text { font-size:11px; color:var(--text-muted); margin-top:8px; padding-left:2px; }
+
+    /* ── BUTTONS ── */
+    .btn-primary { margin-top:24px; width:100%; font-size:14px; font-weight:600; padding:13px 20px; border:none; border-radius:var(--radius-sm); color:#fff; cursor:pointer; font-family:inherit; transition:opacity var(--transition),transform var(--transition); letter-spacing:0.01em; }
+    .blue-mode  .btn-primary { background:linear-gradient(135deg,var(--blue),#7c3aed); }
+    .green-mode .btn-primary { background:linear-gradient(135deg,var(--green),#0d9e5a); }
+    .btn-primary:hover { opacity:.9; } .btn-primary:active { transform:scale(.99); }
+    .btn-secondary { font-size:13px; font-weight:500; padding:9px 20px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-input); color:var(--text); cursor:pointer; font-family:inherit; transition:all var(--transition); }
+    .blue-mode  .btn-secondary:hover { border-color:var(--blue);  color:var(--blue);  }
+    .green-mode .btn-secondary:hover { border-color:var(--green); color:var(--green); }
+    .btn-danger { font-size:13px; font-weight:500; padding:9px 18px; border:1px solid rgba(243,139,168,0.3); border-radius:var(--radius-sm); background:rgba(243,139,168,0.06); color:var(--danger); cursor:pointer; font-family:inherit; transition:all var(--transition); }
+    .btn-danger:hover { border-color:var(--danger); background:rgba(243,139,168,0.12); }
+    .btn-scroll-top { font-size:13px; font-weight:500; padding:9px 18px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-input); color:var(--text); cursor:pointer; font-family:inherit; transition:all var(--transition); }
+    .btn-scroll-top:hover { border-color:#3a3e55; color:var(--text); }
+
+    /* ── OUTPUT ── */
+    .out-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:28px; margin-top:20px; box-shadow:var(--shadow); animation:fadeIn .3s ease; }
+    .green-mode .out-card { border-color:rgba(34,201,122,0.2); }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .subj { font-size:13px; color:var(--text-secondary); margin-bottom:8px; }
+    .subj span { color:var(--text); font-weight:600; }
+    .out { font-family:Arial,sans-serif; font-size:12px; line-height:1.85; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:20px; color:var(--text); margin-top:12px; overflow-x:auto; }
+    .out table.riepilogo { width:100%; border-collapse:collapse; margin:8px 0 12px 0; font-size:12px; }
+    .out table.riepilogo th, .out table.riepilogo td { border:1px solid var(--border); padding:6px 10px; text-align:left; }
+    .out table.riepilogo th { background:var(--bg-card); font-weight:600; width:220px; white-space:nowrap; }
+    .copy-row { display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap; }
+    .msg-copia { font-size:12px; color:var(--success); display:none; }
+    .msg-link  { font-size:12px; color:var(--info);    display:none; }
+
+
+    /* ── SPF/DKIM/DMARC toggle buttons ── */
+    .auth-group { display:flex; flex-direction:column; gap:10px; }
+    .auth-row { display:flex; align-items:center; gap:12px; }
+    .auth-label { font-size:13px; font-weight:600; color:var(--text-secondary); width:54px; flex-shrink:0; }
+    .toggle-pair { display:flex; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); }
+    .toggle-pair button { flex:1; padding:8px 18px; font-size:13px; font-weight:600; border:none; cursor:pointer; font-family:inherit; transition:all var(--transition); background:var(--bg-input); color:var(--text-muted); }
+    .toggle-pair button:first-child { border-right:1px solid var(--border); }
+    .toggle-pair button.pass-active { background:rgba(166,227,161,0.2); color:#a6e3a1; }
+    .toggle-pair button.fail-active { background:rgba(243,139,168,0.2); color:#f38ba8; }
+    .toggle-pair button:hover:not(.pass-active):not(.fail-active) { background:var(--bg-hover); color:var(--text); }
+
+    /* ── lang toggle in output ── */
+    .lang-toggle { display:flex; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); width:fit-content; }
+    .lang-toggle button { padding:7px 16px; font-size:12px; font-weight:600; border:none; cursor:pointer; font-family:inherit; transition:all var(--transition); background:var(--bg-input); color:var(--text-muted); }
+    .lang-toggle button:first-child { border-right:1px solid var(--border); }
+    .lang-toggle button.lang-active { background:rgba(91,106,207,0.2); color:var(--blue); }
+    /* ── IP MODE (orange) ── */
+    --orange: #e07b2a; --orange-dim: rgba(224,123,42,0.08); --orange-border: rgba(224,123,42,0.35);
+    .mode-card.ip-card:hover   { border-color:var(--orange); box-shadow:0 8px 32px rgba(224,123,42,0.15); }
+    .mode-card.ip-card::before { background:radial-gradient(ellipse at 50% 0%, rgba(224,123,42,0.12) 0%, transparent 70%); }
+    .mode-card.ip-card:hover::before { opacity:1; }
+    .ip-card .mode-label  { background:rgba(224,123,42,0.15); color:var(--orange); }
+    .ip-card:hover .mode-chip { border-color:rgba(224,123,42,0.3); color:rgba(224,123,42,0.9); }
+    .badge-ip { background:rgba(224,123,42,0.12); color:var(--orange); border:1px solid rgba(224,123,42,0.25); }
+    .orange-mode .sec  { color:var(--orange); }
+    .orange-mode .card { border-color:rgba(224,123,42,0.12); }
+    .orange-mode .btn-primary { background:linear-gradient(135deg,#e07b2a,#c45a10); }
+    .orange-mode select:focus, .orange-mode input:focus, .orange-mode textarea:focus { border-color:var(--orange); box-shadow:0 0 0 3px rgba(224,123,42,0.15); }
+
+    /* ── IP SEARCH BAR ── */
+    .ip-search-wrap { display:flex; gap:10px; margin-bottom:24px; }
+    .ip-search-wrap input { flex:1; font-size:16px; padding:14px 16px; letter-spacing:0.04em; }
+    .btn-analyze { padding:14px 28px; font-size:14px; font-weight:700; border:none; border-radius:var(--radius-sm); background:linear-gradient(135deg,#e07b2a,#c45a10); color:#fff; cursor:pointer; font-family:inherit; white-space:nowrap; transition:opacity var(--transition); }
+    .btn-analyze:hover { opacity:.88; }
+    .btn-analyze:disabled { opacity:.45; cursor:not-allowed; }
+
+    /* ── API KEY CONFIG ── */
+    .api-config-toggle { font-size:12px; color:var(--text-muted); cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-bottom:12px; padding:5px 10px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-input); transition:all var(--transition); }
+    .api-config-toggle:hover { color:var(--text); border-color:#3a3e55; }
+    .api-config-panel { display:none; animation:slideIn .2s ease; }
+
+    /* ── RISULTATI IP ── */
+    .ip-results { margin-top:8px; }
+    .ip-result-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:22px; margin-bottom:16px; animation:fadeIn .3s ease; }
+    .ip-result-card .result-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--orange); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+    .ip-result-card .result-title::after { content:''; flex:1; height:1px; background:var(--border); }
+    .verdict-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:99px; font-size:13px; font-weight:700; margin-bottom:12px; }
+    .verdict-clean   { background:rgba(166,227,161,0.15); color:#a6e3a1; border:1px solid rgba(166,227,161,0.3); }
+    .verdict-suspect { background:rgba(249,226,175,0.15); color:#f9e2af; border:1px solid rgba(249,226,175,0.3); }
+    .verdict-malicious{ background:rgba(243,139,168,0.15); color:#f38ba8; border:1px solid rgba(243,139,168,0.3); }
+    .ip-stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; margin-bottom:14px; }
+    .ip-stat { background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; }
+    .ip-stat .stat-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; }
+    .ip-stat .stat-value { font-size:14px; font-weight:600; color:var(--text); word-break:break-all; }
+    .ip-stat .stat-value.red   { color:#f38ba8; }
+    .ip-stat .stat-value.green { color:#a6e3a1; }
+    .ip-stat .stat-value.yellow{ color:#f9e2af; }
+    .ip-detail-list { font-size:12px; color:var(--text-secondary); line-height:2; }
+    .ip-detail-list span { color:var(--text); font-weight:500; }
+    .loading-spinner { text-align:center; padding:32px; color:var(--text-muted); font-size:14px; }
+    .loading-spinner::before { content:'⟳'; display:block; font-size:32px; margin-bottom:8px; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .error-msg { background:rgba(243,139,168,0.08); border:1px solid rgba(243,139,168,0.3); border-radius:var(--radius-sm); padding:14px 16px; color:#f38ba8; font-size:13px; }
+    .ext-link { font-size:11px; color:var(--orange); text-decoration:none; margin-left:8px; opacity:.8; }
+    .ext-link:hover { opacity:1; }
+
+    /* ── IP LINK CARDS ── */
+    .ip-link-card {
+      display:block; text-decoration:none;
+      background:var(--bg-input); border:1px solid var(--border);
+      border-radius:var(--radius); padding:16px;
+      transition:all 0.2s; cursor:pointer;
+    }
+    .ip-link-card:hover { border-color:var(--orange); background:rgba(224,123,42,0.06); transform:translateY(-2px); box-shadow:0 4px 16px rgba(224,123,42,0.15); }
+    .ip-link-icon { font-size:24px; margin-bottom:8px; }
+    .ip-link-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:4px; }
+    .ip-link-desc { font-size:11px; color:var(--text-muted); line-height:1.4; }
+    @media(max-width:560px){ .ip-link-card { grid-column: span 2; } }
+
+    /* ── BOTTOM BAR ── */
+    .bottom-bar { position:fixed; bottom:0; left:0; right:0; z-index:100; background:rgba(15,17,23,0.92); backdrop-filter:blur(12px); border-top:1px solid var(--border); display:flex; align-items:center; justify-content:center; gap:12px; padding:12px 24px; }
+
+    /* ── GREEN GLOW su elementi attivi ── */
+    .green-mode .card { transition: border-color 0.3s; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <img id="main-logo-img" src="data:image/png;base64,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" alt="Cyro" style="height:80px;width:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
+    <div class="logo" id="main-logo" style="display:none;">&#128737;</div>
+    <p style="margin-top:4px;">Template email troppo forte compà — realizzato da Sara T.</p>
+  </div>
+
+  <!-- ══════════════════════════════════
+       MODE SELECTOR
+  ══════════════════════════════════ -->
+  <div id="mode-selector">
+    <div class="mode-title">Cosa vuoi fare oggi?</div>
+    <div class="mode-grid">
+      <div class="mode-card alert-card" onclick="setMode('alert')">
+        <span class="mode-icon">🛡️</span>
+        <div class="mode-label">Security Alert</div>
+        <div class="mode-name">Report Alert</div>
+        <div class="mode-desc">Genera il report per un evento di sicurezza rilevato dal SIEM</div>
+        <div class="mode-chips">
+          <span class="mode-chip">Formato 1</span>
+          <span class="mode-chip">Formato 2</span>
+          <span class="mode-chip">IOC</span>
+          <span class="mode-chip">Classificazione</span>
+        </div>
+      </div>
+      <div class="mode-card phish-card" onclick="setMode('phish')">
+        <span class="mode-icon">🎣</span>
+        <div class="mode-label">Phishing</div>
+        <div class="mode-name">Report Phishing</div>
+        <div class="mode-desc">Genera il report di analisi per una mail sospetta di phishing</div>
+        <div class="mode-chips">
+          <span class="mode-chip">Mittente/Destinatario</span>
+          <span class="mode-chip">SPF/DKIM/DMARC</span>
+          <span class="mode-chip">URL & Allegati</span>
+        </div>
+      </div>
+      <div class="mode-card ip-card" onclick="setMode('ip')">
+        <span class="mode-icon">🔍</span>
+        <div class="mode-label">IP Analysis</div>
+        <div class="mode-name">Analisi IP</div>
+        <div class="mode-desc">Analizza un indirizzo IP sospetto su AbuseIPDB, VirusTotal e WHOIS</div>
+        <div class="mode-chips">
+          <span class="mode-chip">AbuseIPDB</span>
+          <span class="mode-chip">VirusTotal</span>
+          <span class="mode-chip">WHOIS</span>
+          <span class="mode-chip">Geolocalizzazione</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       SEZIONE ALERT (BLU)
+  ══════════════════════════════════ -->
+  <div id="section-alert" style="display:none; animation:fadeIn .35s ease;">
+    <div class="back-btn" onclick="goHome()">← Torna alla selezione</div>
+    <div class="section-badge badge-alert">🛡️ &nbsp;Report Security Alert</div>
+
+    <div class="format-picker">
+      <div class="fmt-btn active" id="btn-f1" onclick="setFormat(1)">
+        <div class="fmt-tag">Formato 1</div>
+        <div class="fmt-title">Report Cynet</div>
+        <div class="fmt-desc">Campi base per la segnalazione dell'evento</div>
+        <div class="fmt-extras">
+          <span class="fmt-chip">Host / IP</span><span class="fmt-chip">Utente</span>
+          <span class="fmt-chip">IOC</span><span class="fmt-chip">Decorso</span>
+        </div>
+      </div>
+      <div class="fmt-btn" id="btn-f2" onclick="setFormat(2)">
+        <div class="fmt-tag">Formato 2</div>
+        <div class="fmt-title">Report TrendAI</div>
+        <div class="fmt-desc">Tutti i campi del Formato 1 più informazioni aggiuntive</div>
+        <div class="fmt-extras">
+          <span class="fmt-chip">+ MAC Address</span>
+          <span class="fmt-chip">+ Nome Workbench</span>
+          <span class="fmt-chip">+ Tipo minaccia libero</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card f2-extra" id="f2-block" style="display:none;">
+      <div class="sec">Informazioni aggiuntive <span class="f2-badge">FORMATO 2</span></div>
+      <div class="fl"><label>Nome Workbench <span style="font-size:11px;color:var(--text-muted)">(titolo del report)</span></label><input type="text" id="workbench" placeholder="es. WB-PROD-SERVER-03"></div>
+      <div class="fl"><label>MAC Address</label><input type="text" id="mac" placeholder="es. 00:1A:2B:3C:4D:5E"></div>
+      <div class="fl"><label>Tipo di minaccia <span style="font-size:11px;color:var(--text-muted)">(incolla il testo)</span></label><textarea id="tipo-f2" style="min-height:70px;" placeholder="es. Suspicious PowerShell execution..."></textarea></div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Intestazione report</div>
+      <div class="g2">
+        <div class="fl"><label>Nome cliente / azienda</label><input type="text" id="cliente" placeholder="es. Azienda S.r.l."></div>
+        <div class="fl"><label>ID Alert</label><input type="text" id="alertid" placeholder="es. ALERT-189/190"></div>
+      </div>
+      <div class="g3">
+        <div class="fl"><label>Data</label><input type="date" id="data"></div>
+        <div class="fl"><label>Ora rilevazione</label><input type="time" id="ora"></div>
+        <div class="fl"><label>Severity</label>
+          <select id="severity"><option value="">— seleziona —</option><option>Critica</option><option>Alta</option><option>Media</option><option>Bassa</option></select>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="fl"><label>Hostname (computer)</label><input type="text" id="host" placeholder="es. WORKSTATION-01"></div>
+        <div class="fl"><label>Utente coinvolto</label><input type="text" id="utente" placeholder="es. dominio\utente01"></div>
+      </div>
+      <div class="g2">
+        <div class="fl"><label>Host IP</label><input type="text" id="hostip" placeholder="es. 192.168.1.42"></div>
+        <div class="fl"><label>Azione del sistema</label>
+          <select id="azione"><option>Bloccato automaticamente</option><option>Rilevato (non bloccato)</option><option>In analisi</option></select>
+        </div>
+      </div>
+      <div class="fl" id="tipo-f1-wrap">
+        <label>Tipo di minaccia</label>
+        <select id="tipo" onchange="toggleAltro()">
+          <option value="">— seleziona —</option>
+          <option>Detection Engine - Malicious Binary - Infected File - File Dumped on the Disk</option>
+          <option>Malicious Script Command</option><option>Process Monitoring</option>
+          <option>Unauthorized File Operation Attempt</option><option>Decoy Triggered</option>
+          <option>Detection Engine - Malicious Binary - Infected File - Attempt to Run</option>
+          <option>Threat Intelligence Detection - Malicious Binary - Blacklist</option>
+          <option value="__altro__">Altro (specificare)</option>
+        </select>
+      </div>
+      <div class="fl" id="altro-wrap" style="display:none;">
+        <label>Specifica tipo di minaccia</label>
+        <input type="text" id="tipo-altro" placeholder="Descrivi il tipo di minaccia">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Fonte anomalia — IOC</div>
+      <div class="fl"><label>Elenca gli IOC rilevati</label>
+        <small style="color:var(--text-muted);display:block;margin-bottom:8px;">Inserisci uno per riga: nomi file, path, hash, indirizzi IP, nomi malware...</small>
+        <textarea id="fonte" style="min-height:100px;" placeholder="es.&#10;\Device\HarddiskVolume5\...\stordiag.exe&#10;SHA256: 2E149D..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Decorso anomalia</div>
+      <div class="fl"><label>Come siamo giunti a questa anomalia?</label>
+        <small style="color:var(--text-muted);display:block;margin-bottom:8px;">Descrivi la catena di eventi che ha portato al rilevamento</small>
+        <textarea id="decorso" placeholder="es. Il processo explorer.exe ha creato il file stordiag.exe..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Classificazione anomalia</div>
+      <div class="class-label">Seleziona la classificazione dell'evento:</div>
+      <div class="class-grid">
+        <div class="class-opt" id="opt-vp" onclick="selClass('VP')"><div class="class-title">Vero Positivo</div><div class="class-desc">La minaccia è reale e il sistema l'ha rilevata correttamente</div></div>
+        <div class="class-opt" id="opt-fp" onclick="selClass('FP')"><div class="class-title">Falso Positivo</div><div class="class-desc">L'alert è scattato ma non c'è nessuna minaccia reale</div></div>
+        <div class="class-opt" id="opt-vn" onclick="selClass('VN')"><div class="class-title">Vero Negativo</div><div class="class-desc">Nessuna minaccia presente e il sistema non ha segnalato nulla</div></div>
+        <div class="class-opt" id="opt-fn" onclick="selClass('FN')"><div class="class-title">Falso Negativo</div><div class="class-desc">La minaccia era presente ma il sistema non l'ha rilevata</div></div>
+      </div>
+      <input type="hidden" id="classificazione" value="">
+    </div>
+
+    <div class="card">
+      <div class="sec">Azioni consigliate</div>
+      <div class="fl"><label>Cosa suggeriamo al cliente</label><textarea id="azioni" placeholder="es. Verificare se l'aggiornamento Windows era previsto..."></textarea></div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Nota SOC fissa</div>
+      <div class="fixed-note">Il SOC sta effettuando ulteriori verifiche per eventuali movimenti laterali. Seguirà successivamente, se necessario, un report tecnico dettagliato sulla minaccia e le sue azioni.</div>
+      <div class="helper-text">Questa frase viene aggiunta automaticamente in ogni email.</div>
+    </div>
+
+    <button class="btn-primary" onclick="generaAlert()">Genera email</button>
+
+    <div id="out-area-alert" style="display:none;">
+      <div class="out-card">
+        <div class="sec" style="margin-top:0;">Email generata</div>
+        <div class="subj">Oggetto: <span id="sogg-alert"></span></div>
+        <div class="out" id="corpo-alert"></div>
+        <div class="copy-row" style="margin-bottom:10px;">
+          <div class="lang-toggle">
+            <button id="lang-it" class="lang-active" onclick="setLang('it')">🇮🇹 ITA</button>
+            <button id="lang-en" onclick="setLang('en')">🇬🇧 ENG</button>
+          </div>
+        </div>
+        <div class="copy-row">
+          <button class="btn-secondary" onclick="copiaOutput('corpo-alert','msg-copia-alert')">📋 Copia testo</button>
+          <button class="btn-secondary" onclick="copiaLink()">🔗 Copia link</button>
+          <span id="msg-copia-alert" class="msg-copia">✓ Copiato!</span>
+          <span id="msg-link-alert" class="msg-link">✓ Link copiato!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       SEZIONE PHISHING (VERDE)
+  ══════════════════════════════════ -->
+  <div id="section-phish" style="display:none; animation:fadeIn .35s ease;">
+    <div class="back-btn" onclick="goHome()">← Torna alla selezione</div>
+    <div class="section-badge badge-phish">🎣 &nbsp;Report Phishing</div>
+
+    <div class="card">
+      <div class="sec">Informazioni email sospetta</div>
+      <div class="g2">
+        <div class="fl"><label>Data richiesta analisi</label><input type="date" id="p-data-richiesta"></div>
+        <div class="fl"><label>Data e ora di invio email</label>
+          <div class="g2" style="margin-top:0;">
+            <input type="date" id="p-data-invio-d">
+            <input type="time" id="p-data-invio-t">
+          </div>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="fl"><label>Mittente</label><input type="text" id="p-mittente" placeholder="es. noreply@dominio-sospetto.com"></div>
+        <div class="fl"><label>Destinatario</label><input type="text" id="p-destinatario" placeholder="es. utente@azienda.it"></div>
+      </div>
+      <div class="g2">
+        <div class="fl"><label>Reply-To <span style="font-size:11px;color:var(--text-muted)">(se diverso dal mittente)</span></label><input type="text" id="p-replyto" placeholder="es. attacker@gmail.com"></div>
+        <div class="fl"><label>Return-Path</label><input type="text" id="p-returnpath" placeholder="es. bounce@smtp-server.com"></div>
+      </div>
+      <div class="fl"><label>Oggetto dell'email sospetta</label><input type="text" id="p-oggetto" placeholder="es. Verifica urgente del tuo account"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Infrastruttura di invio</div>
+      <div class="g2">
+        <div class="fl"><label>Indirizzo IP del server di invio</label><input type="text" id="p-ip" placeholder="es. 185.220.101.42"></div>
+        <div class="fl"><label>Nome host del server di invio</label><input type="text" id="p-hostname" placeholder="es. mail.dominio-sospetto.com"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Contenuto & IOC</div>
+      <div class="g2">
+        <div class="fl"><label>URL collegato presente</label>
+          <select id="p-url-presente"><option value="">— seleziona —</option><option>Sì</option><option>No</option></select>
+        </div>
+        <div class="fl"><label>Dominio principale degli URL</label><input type="text" id="p-dominio-url" placeholder="es. phishing-site.ru"></div>
+      </div>
+      <div class="g2">
+        <div class="fl"><label>Allegato presente</label>
+          <select id="p-allegato"><option value="">— seleziona —</option><option>Sì</option><option>No</option></select>
+        </div>
+        <div class="fl"><label>Tipo allegato <span style="font-size:11px;color:var(--text-muted)">(se presente)</span></label><input type="text" id="p-tipo-allegato" placeholder="es. .pdf, .docx, .exe"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Autenticazione email</div>
+      <div class="fl">
+        <label style="margin-bottom:12px;">Verifica SPF, DKIM e DMARC</label>
+        <div class="auth-group">
+          <div class="auth-row">
+            <span class="auth-label">SPF</span>
+            <div class="toggle-pair">
+              <button id="spf-pass" onclick="setAuth('spf','PASS')">✓ PASS</button>
+              <button id="spf-fail" onclick="setAuth('spf','FAIL')">✗ FAIL</button>
+            </div>
+          </div>
+          <div class="auth-row">
+            <span class="auth-label">DKIM</span>
+            <div class="toggle-pair">
+              <button id="dkim-pass" onclick="setAuth('dkim','PASS')">✓ PASS</button>
+              <button id="dkim-fail" onclick="setAuth('dkim','FAIL')">✗ FAIL</button>
+            </div>
+          </div>
+          <div class="auth-row">
+            <span class="auth-label">DMARC</span>
+            <div class="toggle-pair">
+              <button id="dmarc-pass" onclick="setAuth('dmarc','PASS')">✓ PASS</button>
+              <button id="dmarc-fail" onclick="setAuth('dmarc','FAIL')">✗ FAIL</button>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="p-spf-val" value="">
+        <input type="hidden" id="p-dkim-val" value="">
+        <input type="hidden" id="p-dmarc-val" value="">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Analisi del contenuto</div>
+      <div class="fl"><label>Descrizione analisi</label>
+        <textarea id="p-descrizione" style="min-height:120px;" placeholder="Analisi dettagliata dei contenuti dell'email sospetta, inclusi testo, immagini ed eventuali script..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Risposta all'incidente</div>
+      <div class="fl"><label>Azioni da intraprendere</label>
+        <textarea id="p-azioni" style="min-height:90px;" placeholder="es. Bloccare l'indirizzo IP mittente, segnalare il dominio, avvisare gli utenti..."></textarea>
+      </div>
+      <div class="fl"><label>Note aggiuntive</label>
+        <textarea id="p-note" style="min-height:70px;" placeholder="Annotazioni aggiuntive o osservazioni rilevanti durante l'analisi..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Nota fissa</div>
+      <div class="fixed-note">Restiamo a disposizione per qualsiasi domanda o ulteriore supporto. Cordiali saluti.</div>
+      <div class="helper-text">Questa frase viene aggiunta automaticamente in ogni report.</div>
+    </div>
+
+    <button class="btn-primary" onclick="generaPhish()">Genera report</button>
+
+    <div id="out-area-phish" style="display:none;">
+      <div class="out-card">
+        <div class="sec" style="margin-top:0;">Report generato</div>
+        <div class="subj">Oggetto: <span id="sogg-phish"></span></div>
+        <div class="out" id="corpo-phish"></div>
+        <div class="copy-row">
+          <button class="btn-secondary" onclick="copiaOutput('corpo-phish','msg-copia-phish')">📋 Copia testo</button>
+          <button class="btn-secondary" onclick="copiaLink()">🔗 Copia link</button>
+          <span id="msg-copia-phish" class="msg-copia">✓ Copiato!</span>
+          <span id="msg-link-phish" class="msg-link">✓ Link copiato!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════
+       SEZIONE ANALISI IP (ARANCIONE)
+  ══════════════════════════════════ -->
+  <div id="section-ip" style="display:none; animation:fadeIn .35s ease;">
+    <div class="back-btn" onclick="goHome()">← Torna alla selezione</div>
+    <div class="section-badge badge-ip">🔍 &nbsp;Analisi IP Sospetto</div>
+
+    <!-- API KEY CONFIG -->
+    <div class="api-config-toggle" onclick="toggleApiConfig()">⚙️ Configurazione API Key <span id="api-config-arrow">▼</span></div>
+    <div class="api-config-panel" id="api-config-panel">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="sec">Chiavi API</div>
+        <small style="color:var(--text-muted);display:block;margin-bottom:14px;">Le chiavi vengono salvate nel tuo browser (localStorage) e non vengono condivise.</small>
+        <div class="g2">
+          <div class="fl">
+            <label>AbuseIPDB API Key</label>
+            <input type="password" id="key-abuseipdb" placeholder="Incolla la tua API key...">
+          </div>
+          <div class="fl">
+            <label>VirusTotal API Key</label>
+            <input type="password" id="key-virustotal" placeholder="Incolla la tua API key...">
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-top:8px;" onclick="saveApiKeys()">💾 Salva chiavi</button>
+        <span id="msg-keys-saved" style="font-size:12px;color:#a6e3a1;display:none;margin-left:12px;">✓ Salvate!</span>
+      </div>
+    </div>
+
+    <!-- SEARCH BAR -->
+    <div class="ip-search-wrap">
+      <input type="text" id="ip-input" placeholder="Inserisci un indirizzo IP sospetto (es. 185.220.101.42)" onkeydown="if(event.key==='Enter')analizzaIP()">
+      <button class="btn-analyze" id="btn-analyze" onclick="analizzaIP()">🔍 Analizza</button>
+    </div>
+
+    <!-- RISULTATI -->
+    <div class="ip-results" id="ip-results"></div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+  <button class="btn-scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Torna su</button>
+  <button class="btn-danger" onclick="resetForm()">🗑 Reset campi</button>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   STATO
+════════════════════════════════════════ */
+const NOTA_SOC    = "Il SOC sta effettuando ulteriori verifiche per eventuali movimenti laterali. Seguirà successivamente, se necessario, un report tecnico dettagliato sulla minaccia e le sue azioni.";
+const NOTA_SOC_EN = "The SOC is conducting further investigations for possible lateral movements. A detailed technical report on the threat and its actions will follow subsequently, if necessary.";
+const NOTA_CHIUSURA_IT = "Restiamo a disposizione per qualsiasi chiarimento.";
+const NOTA_CHIUSURA_EN = "We remain available for any further clarification.";
+let currentLang = 'it';
+let authState = { spf: null, dkim: null, dmarc: null };
+const NOTA_PHISH = "Restiamo a disposizione per qualsiasi domanda o ulteriore supporto. Cordiali saluti.";
+const classMap   = { VP:{label:"Vero Positivo"}, FP:{label:"Falso Positivo"}, VN:{label:"Vero Negativo"}, FN:{label:"Falso Negativo"} };
+let currentMode   = null;   // 'alert' | 'phish' | 'ip'
+let currentFormat = 1;
+
+/* ════════════════════════════════════════
+   MODE SELECTOR
+════════════════════════════════════════ */
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('mode-selector').style.display  = 'none';
+  document.getElementById('section-alert').style.display  = mode === 'alert' ? 'block' : 'none';
+  document.getElementById('section-phish').style.display  = mode === 'phish' ? 'block' : 'none';
+  document.getElementById('section-ip').style.display     = mode === 'ip'    ? 'block' : 'none';
+
+  const body = document.body;
+  body.classList.remove('blue-mode','green-mode','orange-mode');
+  if (mode === 'alert') body.classList.add('blue-mode');
+  else if (mode === 'phish') body.classList.add('green-mode');
+  else if (mode === 'ip') { body.classList.add('orange-mode'); loadApiKeys(); }
+
+  const logo = document.getElementById('main-logo');
+  if (mode === 'alert')      { logo.style.background='linear-gradient(135deg,#5b6acf,#7c3aed)'; logo.textContent='🛡️'; }
+  else if (mode === 'phish') { logo.style.background='linear-gradient(135deg,#22c97a,#0d9e5a)'; logo.textContent='🎣'; }
+  else                       { logo.style.background='linear-gradient(135deg,#e07b2a,#c45a10)'; logo.textContent='🔍'; }
+  try { saveToURL(); } catch(e){}
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function goHome() {
+  currentMode = null;
+  document.getElementById('mode-selector').style.display  = 'block';
+  document.getElementById('section-alert').style.display  = 'none';
+  document.getElementById('section-phish').style.display  = 'none';
+  document.getElementById('section-ip').style.display     = 'none';
+  document.body.classList.remove('blue-mode','green-mode','orange-mode');
+  const logo = document.getElementById('main-logo');
+  logo.style.background = 'linear-gradient(135deg,#5b6acf,#7c3aed)';
+  logo.textContent = '🛡️';
+  try { history.replaceState(null,"",location.pathname); } catch(e){}
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ════════════════════════════════════════
+   ALERT — FORMATO
+════════════════════════════════════════ */
+function setFormat(n) {
+  currentFormat = n;
+  document.getElementById('btn-f1').classList.toggle('active', n===1);
+  document.getElementById('btn-f2').classList.toggle('active', n===2);
+  document.getElementById('f2-block').style.display     = n===2 ? 'block' : 'none';
+  document.getElementById('tipo-f1-wrap').style.display = n===1 ? 'block' : 'none';
+  document.getElementById('altro-wrap').style.display   = 'none';
+  document.getElementById('out-area-alert').style.display = 'none';
+}
+
+function selClass(val) {
+  document.getElementById("classificazione").value = val;
+  ["VP","FP","VN","FN"].forEach(k => {
+    document.getElementById("opt-"+k.toLowerCase()).className =
+      "class-opt"+(k===val?" sel-"+k.toLowerCase():"");
+  });
+}
+
+function toggleAltro() {
+  document.getElementById("altro-wrap").style.display =
+    document.getElementById("tipo").value==="__altro__" ? "block" : "none";
+}
+
+function setAuth(field, val) {
+  authState[field] = val;
+  // Reset both buttons
+  document.getElementById(field+"-pass").className = "";
+  document.getElementById(field+"-fail").className = "";
+  // Activate selected
+  document.getElementById(field+"-"+val.toLowerCase()).className = val==="PASS" ? "pass-active" : "fail-active";
+  // Update hidden field
+  document.getElementById("p-"+field+"-val").value = val;
+  try { saveToURL(); } catch(e){}
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  document.getElementById("lang-it").className = lang==="it" ? "lang-active" : "";
+  document.getElementById("lang-en").className = lang==="en" ? "lang-active" : "";
+  // Rigenera con la stessa lingua
+  if (document.getElementById("out-area-alert").style.display !== "none") generaAlert();
+}
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+function fmtData(d) { if(!d) return "[data]"; const [y,m,g]=d.split("-"); return `${g}/${m}/${y}`; }
+function fmtIOC(r)  { if(!r||!r.trim()) return null; return r.trim().split("\n").map(x=>x.trim()).filter(Boolean).map(x=>`  • ${x}`).join("\n"); }
+function esc(s)     { const d=document.createElement('div'); d.textContent=s||""; return d.innerHTML; }
+function v(id)      { const el=document.getElementById(id); return el ? el.value.trim() : ""; }
+
+/* ════════════════════════════════════════
+   GENERA ALERT
+════════════════════════════════════════ */
+function generaAlert() {
+  const cliente   = v("cliente")   || "[Cliente]";
+  const alertid   = v("alertid")   || "—";
+  const data      = document.getElementById("data").value;
+  const ora       = v("ora")       || "[ora]";
+  const sev       = document.getElementById("severity").value || "[severity]";
+  const host      = v("host")      || "[hostname]";
+  const hostip    = v("hostip")    || "—";
+  const utente    = v("utente")    || "[utente]";
+  const azione    = document.getElementById("azione").value;
+  const fonte     = document.getElementById("fonte").value || "";
+  const decorso   = v("decorso");
+  const azioniTxt = v("azioni");
+  const classVal  = document.getElementById("classificazione").value;
+  const classLabel = classVal ? classMap[classVal].label : "[non classificato]";
+
+  let tipo, workbench=null, mac=null;
+  if (currentFormat===2) {
+    tipo      = v("tipo-f2")   || "[tipo minaccia]";
+    workbench = v("workbench") || "[Workbench]";
+    mac       = v("mac")       || "—";
+  } else {
+    const tipoRaw = document.getElementById("tipo").value;
+    tipo = tipoRaw==="__altro__" ? (v("tipo-altro")||"Altro") : tipoRaw||"[tipo]";
+  }
+
+  const titoloOggetto = workbench || tipo;
+  const oggetto = `[QR1-Report] ${titoloOggetto} — ${cliente} | ${fmtData(data)} | Severity: ${sev}`;
+  const isEN = currentLang === 'en';
+
+  // Plain text (IT o EN)
+  const SEP = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
+  // Traduci valori dinamici in inglese
+  const sevEN = {Critica:"Critical",Alta:"High",Media:"Medium",Bassa:"Low"}[sev] || sev;
+  const azioneEN = {
+    "Bloccato automaticamente":"Automatically Blocked",
+    "Rilevato (non bloccato)":"Detected (not blocked)",
+    "In analisi":"Under Analysis"
+  }[azione] || azione;
+  const classEN = {
+    "Vero Positivo":"True Positive","Falso Positivo":"False Positive",
+    "Vero Negativo":"True Negative","Falso Negativo":"False Negative"
+  }[classLabel] || classLabel;
+
+  const lbl = isEN ? {
+    intro: `Dear,\n\nplease find below the report regarding the security event detected on ${fmtData(data)} at ${ora} on system ${host}.`,
+    recap: "SUMMARY", wb: "Workbench Name", id: "Alert ID", dt: "Date/Time",
+    sev: "Severity", pc: "Computer", ip: "Host IP", mac: "MAC Address",
+    usr: "User", thr: "Threat Type", out: "Outcome", cls: "Classification",
+    ioc: "IOC — THREAT SOURCE", dec: "EVENT DESCRIPTION", act: "RECOMMENDED ACTIONS",
+    closing: `\n${NOTA_SOC_EN}\n\n${NOTA_CHIUSURA_EN}\n\nSOC Team`,
+    sevVal: sevEN, azioneVal: azioneEN, classVal: classEN
+  } : {
+    intro: `Salve,\n\ndi seguito il report relativo all'evento di sicurezza rilevato in data ${fmtData(data)} alle ore ${ora} sul sistema ${host}.`,
+    recap: "RIEPILOGO", wb: "Nome Workbench", id: "ID Alert", dt: "Data/Ora",
+    sev: "Severity", pc: "Computer", ip: "Host IP", mac: "MAC Address",
+    usr: "Utente", thr: "Tipo minaccia", out: "Esito", cls: "Classificazione",
+    ioc: "FONTE ANOMALIA – IOC", dec: "DECORSO ANOMALIA", act: "AZIONI CONSIGLIATE",
+    closing: `\n${NOTA_SOC}\n\n${NOTA_CHIUSURA_IT}\n\nTeam SOC`,
+    sevVal: sev, azioneVal: azione, classVal: classLabel
+  };
+
+  let t = lbl.intro + "\n\n";
+  t += `${SEP}\n ${lbl.recap}\n${SEP}\n`;
+  if (workbench) t += `${lbl.wb.padEnd(16)}: ${workbench}\n`;
+  t += `${lbl.id.padEnd(16)}: ${alertid}\n`;
+  t += `${lbl.dt.padEnd(16)}: ${fmtData(data)} – ${ora}\n`;
+  t += `${lbl.sev.padEnd(16)}: ${lbl.sevVal}\n`;
+  t += `${lbl.pc.padEnd(16)}: ${host}\n`;
+  t += `${lbl.ip.padEnd(16)}: ${hostip}\n`;
+  if (mac) t += `${lbl.mac.padEnd(16)}: ${mac}\n`;
+  t += `${lbl.usr.padEnd(16)}: ${utente}\n`;
+  t += `${lbl.thr.padEnd(16)}: ${tipo}\n`;
+  t += `${lbl.out.padEnd(16)}: ${lbl.azioneVal}\n`;
+  t += `${lbl.cls.padEnd(16)}: ${lbl.classVal}\n`;
+  const ioc = fmtIOC(fonte);
+  if (ioc) t += `\n${SEP}\n ${lbl.ioc}\n${SEP}\n${ioc}\n`;
+  if (decorso)   t += `\n${SEP}\n ${lbl.dec}\n${SEP}\n${decorso}\n`;
+  if (azioniTxt) t += `\n${SEP}\n ${lbl.act}\n${SEP}\n${azioniTxt}\n`;
+  t += lbl.closing;
+
+  // HTML con tabella (IT o EN)
+  let h = esc(lbl.intro).replace(/\n/g,'<br>') + '<br><br>';
+  h += `<strong>${lbl.recap}</strong><table class="riepilogo">`;
+  if (workbench) h += `<tr><th>${lbl.wb}</th><td>${esc(workbench)}</td></tr>`;
+  h += `<tr><th>${lbl.id}</th><td>${esc(alertid)}</td></tr>`;
+  h += `<tr><th>${lbl.dt}</th><td>${esc(fmtData(data))} – ${esc(ora)}</td></tr>`;
+  h += `<tr><th>${lbl.sev}</th><td>${esc(lbl.sevVal)}</td></tr>`;
+  h += `<tr><th>${lbl.pc}</th><td>${esc(host)}</td></tr>`;
+  h += `<tr><th>${lbl.ip}</th><td>${esc(hostip)}</td></tr>`;
+  if (mac) h += `<tr><th>${lbl.mac}</th><td>${esc(mac)}</td></tr>`;
+  h += `<tr><th>${lbl.usr}</th><td>${esc(utente)}</td></tr>`;
+  h += `<tr><th>${lbl.thr}</th><td>${esc(tipo)}</td></tr>`;
+  h += `<tr><th>${lbl.out}</th><td>${esc(lbl.azioneVal)}</td></tr>`;
+  h += `<tr><th>${lbl.cls}</th><td>${esc(lbl.classVal)}</td></tr>`;
+  h += `</table>`;
+  if (ioc) h += `<br><strong>━━━━━━━━━━ ${lbl.ioc} ━━━━━━━━━━</strong><br>${esc(ioc).replace(/\n/g,'<br>')}<br>`;
+  if (decorso)   h += `<br><strong>━━━━━━━━━━ ${lbl.dec} ━━━━━━━━━━</strong><br>${esc(decorso).replace(/\n/g,'<br>')}<br>`;
+  if (azioniTxt) h += `<br><strong>━━━━━━━━━━ ${lbl.act} ━━━━━━━━━━</strong><br>${esc(azioniTxt).replace(/\n/g,'<br>')}<br>`;
+  const notaHTML = isEN ? NOTA_SOC_EN : NOTA_SOC;
+  const chiusuraHTML = isEN ? NOTA_CHIUSURA_EN : NOTA_CHIUSURA_IT;
+  const teamHTML = isEN ? "SOC Team" : "Team SOC";
+  h += `<br>${esc(notaHTML)}<br><br>${esc(chiusuraHTML)}<br><br>${teamHTML}`;
+
+  document.getElementById("sogg-alert").textContent = oggetto;
+  const el = document.getElementById("corpo-alert");
+  el.innerHTML = h;
+  el.dataset.plain = t;
+  document.getElementById("out-area-alert").style.display = "block";
+  document.getElementById("out-area-alert").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ════════════════════════════════════════
+   GENERA PHISHING
+════════════════════════════════════════ */
+function generaPhish() {
+  const dataRichiesta  = v("p-data-richiesta") ? fmtData(v("p-data-richiesta").replace(/\//g,'-').split('-').reverse().join('-')) : "[data richiesta]";
+  const mittente       = v("p-mittente")       || "[mittente]";
+  const destinatario   = v("p-destinatario")   || "[destinatario]";
+  const replyto        = v("p-replyto")        || "—";
+  const returnpath     = v("p-returnpath")     || "—";
+  const oggettoEmail   = v("p-oggetto")        || "[oggetto]";
+  const diD = document.getElementById("p-data-invio-d").value;
+  const diT = document.getElementById("p-data-invio-t").value;
+  const dataInvio = diD || diT ? ((diD ? fmtData(diD) : "") + (diD&&diT ? " " : "") + (diT||"")).trim() : "[data/ora invio]";
+  const ip             = v("p-ip")             || "—";
+  const hostname       = v("p-hostname")       || "—";
+  const urlPresente    = document.getElementById("p-url-presente").value || "—";
+  const dominioUrl     = v("p-dominio-url")    || "—";
+  const allegato       = document.getElementById("p-allegato").value || "—";
+  const tipoAllegato   = v("p-tipo-allegato")  || "—";
+  const spfVal  = authState.spf   || "—";
+  const dkimVal = authState.dkim  || "—";
+  const dmarcVal= authState.dmarc || "—";
+  const spfDkim = `SPF: ${spfVal}  |  DKIM: ${dkimVal}  |  DMARC: ${dmarcVal}`;
+  const descrizione    = v("p-descrizione")    || "—";
+  const azioni         = v("p-azioni")         || "—";
+  const note           = v("p-note");
+
+  const oggetto = `[Phishing Report] ${oggettoEmail} — Analisi email sospetta | ${dataRichiesta}`;
+
+  // Plain text
+  let t = `Questo rapporto è redatto in risposta alla richiesta di analisi pervenuta in data ${dataRichiesta}.\n\n`;
+  t += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n DETTAGLI EMAIL SOSPETTA\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  t += `Mittente                      : ${mittente}\n`;
+  t += `Destinatario                  : ${destinatario}\n`;
+  t += `Reply-To                      : ${replyto}\n`;
+  t += `Return-Path                   : ${returnpath}\n`;
+  t += `Oggetto dell'e-mail           : ${oggettoEmail}\n`;
+  t += `Data ed ora di invio          : ${dataInvio}\n`;
+  t += `IP server di invio            : ${ip}\n`;
+  t += `Nome host server di invio     : ${hostname}\n`;
+  t += `URL collegato presente        : ${urlPresente}\n`;
+  t += `Dominio principale degli URL  : ${dominioUrl}\n`;
+  t += `Allegato                      : ${allegato}${tipoAllegato !== "—" ? ` (${tipoAllegato})` : ""}\n`;
+  t += `Verifica SPF, DKIM e DMARC   : ${spfDkim}\n`;
+  t += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n DESCRIZIONE ANALISI\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${descrizione}\n`;
+  t += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n AZIONI DA INTRAPRENDERE\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${azioni}\n`;
+  if (note) t += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n NOTE\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${note}\n`;
+  t += `\n${NOTA_PHISH}`;
+
+  // HTML con tabella
+  let h = `Questo rapporto è redatto in risposta alla richiesta di analisi pervenuta in data <strong>${esc(dataRichiesta)}</strong>.<br><br>`;
+  h += `<strong>DETTAGLI EMAIL SOSPETTA</strong><table class="riepilogo">`;
+  h += `<tr><th>Mittente</th><td>${esc(mittente)}</td></tr>`;
+  h += `<tr><th>Destinatario</th><td>${esc(destinatario)}</td></tr>`;
+  h += `<tr><th>Reply-To</th><td>${esc(replyto)}</td></tr>`;
+  h += `<tr><th>Return-Path</th><td>${esc(returnpath)}</td></tr>`;
+  h += `<tr><th>Oggetto dell'e-mail</th><td>${esc(oggettoEmail)}</td></tr>`;
+  h += `<tr><th>Data ed ora di invio</th><td>${esc(dataInvio)}</td></tr>`;
+  h += `<tr><th>IP server di invio</th><td>${esc(ip)}</td></tr>`;
+  h += `<tr><th>Nome host server di invio</th><td>${esc(hostname)}</td></tr>`;
+  h += `<tr><th>URL collegato presente</th><td>${esc(urlPresente)}</td></tr>`;
+  h += `<tr><th>Dominio principale degli URL</th><td>${esc(dominioUrl)}</td></tr>`;
+  h += `<tr><th>Allegato</th><td>${esc(allegato)}${tipoAllegato !== "—" ? ` <em>(${esc(tipoAllegato)})</em>` : ""}</td></tr>`;
+  h += `<tr><th>Verifica SPF, DKIM e DMARC</th><td>${esc(spfDkim)}</td></tr>`;
+  h += `</table>`;
+  h += `<br><strong>━━━━━━━━━━ DESCRIZIONE ANALISI ━━━━━━━━━━</strong><br>${esc(descrizione).replace(/\n/g,'<br>')}<br>`;
+  h += `<br><strong>━━━━━━━━━━ AZIONI DA INTRAPRENDERE ━━━━━━━━━━</strong><br>${esc(azioni).replace(/\n/g,'<br>')}<br>`;
+  if (note) h += `<br><strong>━━━━━━━━━━ NOTE ━━━━━━━━━━</strong><br>${esc(note).replace(/\n/g,'<br>')}<br>`;
+  h += `<br>${esc(NOTA_PHISH)}`;
+
+  document.getElementById("sogg-phish").textContent = oggetto;
+  const el = document.getElementById("corpo-phish");
+  el.innerHTML = h;
+  el.dataset.plain = t;
+  document.getElementById("out-area-phish").style.display = "block";
+  document.getElementById("out-area-phish").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ════════════════════════════════════════
+   COPIA / LINK
+════════════════════════════════════════ */
+function copiaOutput(corpoId, msgId) {
+  const el = document.getElementById(corpoId);
+  const testo = el.dataset.plain || el.textContent;
+  navigator.clipboard.writeText(testo).then(() => flash(msgId));
+}
+
+function copiaLink() {
+  try { saveToURL(); } catch(e){}
+  navigator.clipboard.writeText(location.href).then(() => {
+    flash(currentMode === 'phish' ? 'msg-link-phish' : 'msg-link-alert');
+  });
+}
+
+function flash(id) {
+  const m = document.getElementById(id);
+  if(!m) return;
+  m.style.display = "inline";
+  setTimeout(() => m.style.display = "none", 2200);
+}
+
+/* ════════════════════════════════════════
+   RESET
+════════════════════════════════════════ */
+function resetForm() {
+  if (!confirm("Vuoi davvero resettare tutti i campi?")) return;
+
+  // Alert fields
+  ["cliente","alertid","data","ora","host","hostip","utente","fonte","decorso","azioni",
+   "tipo-altro","workbench","mac","tipo-f2"].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = "";
+  });
+  document.getElementById("tipo").value     = "";
+  document.getElementById("azione").value   = "Bloccato automaticamente";
+  document.getElementById("severity").value = "";
+  document.getElementById("classificazione").value = "";
+  ["VP","FP","VN","FN"].forEach(k => { document.getElementById("opt-"+k.toLowerCase()).className = "class-opt"; });
+  document.getElementById("altro-wrap").style.display   = "none";
+  document.getElementById("out-area-alert").style.display = "none";
+  currentFormat = 1;
+  document.getElementById("btn-f1").classList.add("active");
+  document.getElementById("btn-f2").classList.remove("active");
+  document.getElementById("f2-block").style.display     = "none";
+  document.getElementById("tipo-f1-wrap").style.display = "block";
+
+  // Phish fields
+  ["p-data-richiesta","p-data-invio","p-mittente","p-destinatario","p-replyto","p-returnpath",
+   "p-oggetto","p-ip","p-hostname","p-dominio-url","p-tipo-allegato","p-spf-dkim",
+   "p-descrizione","p-azioni","p-note"].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = "";
+  });
+  document.getElementById("p-url-presente").value = "";
+  document.getElementById("p-allegato").value     = "";
+  document.getElementById("out-area-phish").style.display = "none";
+  // Reset auth buttons
+  authState = { spf: null, dkim: null, dmarc: null };
+  ["spf","dkim","dmarc"].forEach(f => {
+    document.getElementById(f+"-pass").className = "";
+    document.getElementById(f+"-fail").className = "";
+    document.getElementById("p-"+f+"-val").value = "";
+  });
+  // Reset lang
+  currentLang = 'it';
+  document.getElementById("lang-it").className = "lang-active";
+  document.getElementById("lang-en").className = "";
+
+  try { history.replaceState(null,"",location.pathname); } catch(e){}
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ════════════════════════════════════════
+   URL CONDIVISIBILE
+════════════════════════════════════════ */
+const ALERT_FIELDS = ["cliente","alertid","data","ora","host","hostip","utente","fonte","decorso","azioni","tipo-altro","workbench","mac","tipo-f2"];
+const PHISH_FIELDS = ["p-data-richiesta","p-data-invio-d","p-data-invio-t","p-mittente","p-destinatario","p-replyto","p-returnpath","p-oggetto","p-ip","p-hostname","p-dominio-url","p-tipo-allegato","p-descrizione","p-azioni","p-note"];
+
+function saveToURL() {
+  try {
+    const p = new URLSearchParams();
+    if (currentMode) p.set("mode", currentMode);
+    if (currentMode === "alert") {
+      p.set("fmt", currentFormat);
+      ALERT_FIELDS.forEach(id => { const el=document.getElementById(id); if(el&&el.value) p.set(id,el.value); });
+      ["tipo","azione","severity"].forEach(id => { const el=document.getElementById(id); if(el&&el.value) p.set(id,el.value); });
+      const cls = document.getElementById("classificazione").value;
+      if(cls) p.set("cls",cls);
+    }
+    if (currentMode === "phish") {
+      PHISH_FIELDS.forEach(id => { const el=document.getElementById(id); if(el&&el.value) p.set(id,el.value); });
+      ["p-url-presente","p-allegato"].forEach(id => { const el=document.getElementById(id); if(el&&el.value) p.set(id,el.value); });
+      if(authState.spf)   p.set("auth-spf",   authState.spf);
+      if(authState.dkim)  p.set("auth-dkim",  authState.dkim);
+      if(authState.dmarc) p.set("auth-dmarc", authState.dmarc);
+    }
+    if (currentMode === "alert") p.set("lang", currentLang);
+    history.replaceState(null,"","?"+p.toString());
+  } catch(e){}
+}
+
+function loadFromURL() {
+  try {
+    const p = new URLSearchParams(location.search);
+    if(!p.toString()) return;
+    const mode = p.get("mode");
+    if(!mode) return;
+    setMode(mode);
+    if (mode === "alert") {
+      setFormat(parseInt(p.get("fmt")||"1"));
+      ALERT_FIELDS.forEach(id => { const el=document.getElementById(id); if(el&&p.has(id)) el.value=p.get(id); });
+      ["tipo","azione","severity"].forEach(id => { const el=document.getElementById(id); if(el&&p.has(id)) el.value=p.get(id); });
+      if(p.has("tipo")) toggleAltro();
+      if(p.has("cls")) selClass(p.get("cls"));
+    }
+    if (mode === "phish") {
+      PHISH_FIELDS.forEach(id => { const el=document.getElementById(id); if(el&&p.has(id)) el.value=p.get(id); });
+      ["p-url-presente","p-allegato"].forEach(id => { const el=document.getElementById(id); if(el&&p.has(id)) el.value=p.get(id); });
+      ["spf","dkim","dmarc"].forEach(f => { if(p.has("auth-"+f)) setAuth(f, p.get("auth-"+f)); });
+    }
+    if (mode === "alert" && p.has("lang")) setLang(p.get("lang"));
+  } catch(e){}
+}
+
+/* ════════════════════════════════════════
+   ANALISI IP
+════════════════════════════════════════ */
+function toggleApiConfig() {
+  const panel = document.getElementById('api-config-panel');
+  const arrow = document.getElementById('api-config-arrow');
+  const open = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+  arrow.textContent = open ? '▼' : '▲';
+}
+
+function saveApiKeys() {
+  try {
+    localStorage.setItem('cyro_abuseipdb', document.getElementById('key-abuseipdb').value.trim());
+    localStorage.setItem('cyro_virustotal', document.getElementById('key-virustotal').value.trim());
+    const msg = document.getElementById('msg-keys-saved');
+    msg.style.display = 'inline';
+    setTimeout(() => msg.style.display = 'none', 2000);
+  } catch(e) { alert('Impossibile salvare le chiavi in questo ambiente. Inseriscile ogni volta.'); }
+}
+
+function loadApiKeys() {
+  try {
+    const ab = localStorage.getItem('cyro_abuseipdb');
+    const vt = localStorage.getItem('cyro_virustotal');
+    if (ab) document.getElementById('key-abuseipdb').value = ab;
+    if (vt) document.getElementById('key-virustotal').value = vt;
+  } catch(e) {}
+}
+
+function getVerdict(score) {
+  if (score === null || score === undefined) return '';
+  if (score >= 75) return '<div class="verdict-badge verdict-malicious">🔴 MALEVOLO (' + score + '%)</div>';
+  if (score >= 25) return '<div class="verdict-badge verdict-suspect">🟡 SOSPETTO (' + score + '%)</div>';
+  return '<div class="verdict-badge verdict-clean">🟢 PULITO (' + score + '%)</div>';
+}
+
+function getVTVerdict(malicious, suspicious) {
+  if (malicious > 5)  return '<div class="verdict-badge verdict-malicious">🔴 MALEVOLO (' + malicious + ' engine)</div>';
+  if (malicious > 0 || suspicious > 0) return '<div class="verdict-badge verdict-suspect">🟡 SOSPETTO (' + (malicious+suspicious) + ' engine)</div>';
+  return '<div class="verdict-badge verdict-clean">🟢 PULITO (0 rilevazioni)</div>';
+}
+
+async function analizzaIP() {
+  const ip = document.getElementById('ip-input').value.trim();
+  if (!ip) return;
+
+  const ipReg = /^(\d{1,3}\.){3}\d{1,3}$|^([0-9a-fA-F:]+)$/;
+  if (!ipReg.test(ip)) {
+    document.getElementById('ip-results').innerHTML = '<div class="error-msg">⚠️ Indirizzo IP non valido.</div>';
+    return;
+  }
+
+  const keyAb = (function(){ try{ return localStorage.getItem('cyro_abuseipdb')||''; }catch(e){return '';} })();
+  const keyVt = (function(){ try{ return localStorage.getItem('cyro_virustotal')||''; }catch(e){return '';} })();
+
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true; btn.textContent = '⟳ Analisi...';
+  const results = document.getElementById('ip-results');
+  results.innerHTML = '<div class="loading-spinner">Analisi in corso su più fonti...</div>';
+
+  const [abuse, vt, geo] = await Promise.allSettled([
+    fetchAbuseIPDB(ip, keyAb),
+    fetchVirusTotal(ip, keyVt),
+    fetchGeo(ip)
+  ]);
+
+  const enc = encodeURIComponent(ip);
+  let html = '';
+
+  // ── AbuseIPDB ──────────────────────────────
+  html += '<div class="ip-result-card">';
+  html += '<div class="result-title">🛡️ AbuseIPDB <a class="ext-link" href="https://www.abuseipdb.com/check/'+enc+'" target="_blank">↗ Apri</a></div>';
+  if (!keyAb) {
+    html += '<div class="error-msg">⚠️ API key AbuseIPDB non configurata. Vai su ⚙️ Configurazione API Key.</div>';
+  } else if (abuse.status === 'fulfilled' && abuse.value && !abuse.value.errors) {
+    const d = abuse.value.data || {};
+    const score = d.abuseConfidenceScore ?? null;
+    html += getVerdict(score);
+    html += '<div class="ip-stat-grid">';
+    html += stat('Punteggio abuso', (score !== null ? score+'%' : '—'), score >= 75 ? 'red' : score >= 25 ? 'yellow' : 'green');
+    html += stat('Segnalazioni', d.totalReports ?? '—');
+    html += stat('Ultimo report', d.lastReportedAt ? d.lastReportedAt.substring(0,10) : 'Mai');
+    html += stat('ISP', d.isp || '—');
+    html += stat('Paese', d.countryCode || '—');
+    html += stat('Tipo utilizzo', d.usageType || '—');
+    html += stat('Dominio', d.domain || '—');
+    html += stat('Tor exit node', d.isTor ? '✓ Sì' : '✗ No', d.isTor ? 'red' : 'green');
+    html += '</div>';
+    if (d.reports && d.reports.length > 0) {
+      html += '<div class="ip-detail-list" style="margin-top:8px;font-size:11px;">Ultimi commenti:<br>';
+      d.reports.slice(0,3).forEach(r => { if(r.comment) html += '• ' + escHtml(r.comment.substring(0,120)) + '<br>'; });
+      html += '</div>';
+    }
+  } else {
+    const err = (abuse.value?.errors?.[0]?.detail) || (abuse.reason?.message) || 'Errore sconosciuto';
+    html += '<div class="error-msg">⚠️ ' + escHtml(String(err)) + '</div>';
+  }
+  html += '</div>';
+
+  // ── VirusTotal ─────────────────────────────
+  html += '<div class="ip-result-card">';
+  html += '<div class="result-title">🦠 VirusTotal <a class="ext-link" href="https://www.virustotal.com/gui/ip-address/'+enc+'" target="_blank">↗ Apri</a></div>';
+  if (!keyVt) {
+    html += '<div class="error-msg">⚠️ API key VirusTotal non configurata. Vai su ⚙️ Configurazione API Key.</div>';
+  } else if (vt.status === 'fulfilled' && vt.value && !vt.value.error) {
+    const attr = vt.value.data?.attributes || {};
+    const stats = attr.last_analysis_stats || {};
+    const mal = stats.malicious || 0;
+    const sus = stats.suspicious || 0;
+    const total = Object.values(stats).reduce((a,b)=>a+b,0);
+    html += getVTVerdict(mal, sus);
+    html += '<div class="ip-stat-grid">';
+    html += stat('Malevolo', mal+' / '+total, mal > 0 ? 'red' : 'green');
+    html += stat('Sospetto', sus+' / '+total, sus > 0 ? 'yellow' : 'green');
+    html += stat('Pulito', (stats.harmless||0)+' / '+total);
+    html += stat('ASN', attr.asn ? '#'+attr.asn : '—');
+    html += stat('AS Owner', attr.as_owner || '—');
+    html += stat('Paese', attr.country || '—');
+    html += stat('Reputazione', attr.reputation ?? '—', (attr.reputation||0) < 0 ? 'red' : 'green');
+    html += stat('Rete', attr.network || '—');
+    html += '</div>';
+    const malEngines = Object.entries(attr.last_analysis_results||{}).filter(([k,v])=>v.category==='malicious').map(([k])=>k);
+    if (malEngines.length) html += '<div class="ip-detail-list" style="margin-top:8px;">Rilevato da: <span>' + malEngines.slice(0,8).join(', ') + (malEngines.length>8?'...':'') + '</span></div>';
+  } else {
+    const err = (vt.value?.error?.message) || (vt.reason?.message) || 'Errore sconosciuto';
+    html += '<div class="error-msg">⚠️ ' + escHtml(String(err)) + '</div>';
+  }
+  html += '</div>';
+
+  // ── Geolocalizzazione + link rapidi ────────
+  html += '<div class="ip-result-card">';
+  html += '<div class="result-title">🌍 Geolocalizzazione</div>';
+  if (geo.status === 'fulfilled' && geo.value && (geo.value.ip || geo.value.city)) {
+    const g = geo.value;
+    html += '<div class="ip-stat-grid">';
+    html += stat('IP', g.ip || ip);
+    html += stat('Paese', (g.country_name||g.country||'—') + (g.country_code?' ('+g.country_code+')':''));
+    html += stat('Regione', g.region_name||g.region||'—');
+    html += stat('Città', g.city||'—');
+    html += stat('Latitudine', g.latitude||g.lat||'—');
+    html += stat('Longitudine', g.longitude||g.lon||'—');
+    html += stat('Fuso orario', g.time_zone||g.timezone||'—');
+    html += stat('Organizzazione', g.org||g.organization||g.connection?.org||'—');
+    html += stat('ASN', g.asn||g.connection?.asn||'—');
+    html += '</div>';
+  } else {
+    html += '<div class="error-msg">⚠️ Impossibile recuperare la geolocalizzazione.</div>';
+  }
+  html += '<div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;">';
+  [['Shodan','https://www.shodan.io/host/'+enc],
+   ['Censys','https://search.censys.io/hosts/'+enc],
+   ['IPinfo','https://ipinfo.io/'+enc],
+   ['Talos','https://talosintelligence.com/reputation_center/lookup?search='+enc],
+   ['GreyNoise','https://viz.greynoise.io/ip/'+enc],
+   ['WHOIS','https://who.is/whois-ip/ip-address/'+enc]
+  ].forEach(([l,u]) => {
+    html += '<a href="'+u+'" target="_blank" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:4px;color:var(--orange);text-decoration:none;background:var(--bg-input);">↗ '+l+'</a>';
+  });
+  html += '</div></div>';
+
+  results.innerHTML = html;
+  btn.disabled = false; btn.textContent = '🔍 Analizza';
+}
+
+function stat(label, value, colorClass) {
+  return '<div class="ip-stat"><div class="stat-label">'+label+'</div><div class="stat-value'+(colorClass?' '+colorClass:'')+'">'+escHtml(String(value))+'</div></div>';
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function fetchAbuseIPDB(ip, key) {
+  if (!key) return { error: 'no key' };
+  try {
+    const r = await fetch('/.netlify/functions/abuseipdb?ip=' + encodeURIComponent(ip) + '&key=' + encodeURIComponent(key));
+    return r.json();
+  } catch(e) { return { errors: [{ detail: e.message }] }; }
+}
+
+async function fetchVirusTotal(ip, key) {
+  if (!key) return { error: 'no key' };
+  try {
+    const r = await fetch('/.netlify/functions/virustotal?ip=' + encodeURIComponent(ip) + '&key=' + encodeURIComponent(key));
+    return r.json();
+  } catch(e) { return { error: { message: e.message } }; }
+}
+
+async function fetchWHOIS(ip) {
+  try {
+    const r = await fetch('https://rdap.org/ip/' + encodeURIComponent(ip));
+    return r.json();
+  } catch(e) { return null; }
+}
+
+async function fetchGeo(ip) {
+  // ipwho.is — CORS permissivo, no key
+  const endpoints = [
+    () => fetch('https://ipwho.is/' + encodeURIComponent(ip)).then(r=>r.json()),
+    () => fetch('https://ipapi.co/' + encodeURIComponent(ip) + '/json/').then(r=>r.json()),
+    () => fetch('https://ip-api.com/json/' + encodeURIComponent(ip) + '?fields=status,country,countryCode,regionName,city,lat,lon,timezone,org,as,query').then(async r=>{
+      const d = await r.json();
+      return { ip:d.query, country_name:d.country, country_code:d.countryCode, region_name:d.regionName, city:d.city, latitude:d.lat, longitude:d.lon, time_zone:d.timezone, org:d.org, asn:d.as };
+    }),
+  ];
+  for (const fn of endpoints) {
+    try { const d = await fn(); if (d && (d.ip || d.city)) return d; } catch(e) {}
+  }
+  return null;
+}
+
+
+document.addEventListener("input",  () => { try{saveToURL();}catch(e){} });
+document.addEventListener("change", () => { try{saveToURL();}catch(e){} });
+loadFromURL();
+</script>
+</body>
+</html>
