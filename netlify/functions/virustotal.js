@@ -24,15 +24,17 @@ function httpsGet(url, headers) {
 
 exports.handler = async function(event) {
   const params = event.queryStringParameters || {};
-  const ip = params.ip;
-  const key = params.key;
+  const query = params.ip;   // usato sia per IP che per hash
+  const key   = params.key;
+  const type  = params.type || 'ip_addresses';  // 'ip_addresses' o 'file'
 
-  if (!ip || !key) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Missing ip or key' }) };
+  if (!query || !key) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Missing query or key' }) };
   }
 
   try {
-    const url = 'https://www.virustotal.com/api/v3/ip_addresses/' + encodeURIComponent(ip);
+    const endpoint = type === 'file' ? 'files' : 'ip_addresses';
+    const url = 'https://www.virustotal.com/api/v3/' + endpoint + '/' + encodeURIComponent(query);
     const data = await httpsGet(url, { 'x-apikey': key });
     return {
       statusCode: 200,
