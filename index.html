@@ -1477,13 +1477,8 @@ async function fetchVTHash(hash, key) {
 }
 
 async function fetchMalwareBazaar(hash) {
-  // MalwareBazaar — API pubblica, no key, no CORS issues
   try {
-    const body = new URLSearchParams({ query: 'get_info', hash: hash });
-    const r = await fetch('https://mb-api.abuse.ch/api/v1/', {
-      method: 'POST',
-      body: body
-    });
+    const r = await fetch('/.netlify/functions/malwarebazaar?hash=' + encodeURIComponent(hash));
     return r.json();
   } catch(e) { return null; }
 }
