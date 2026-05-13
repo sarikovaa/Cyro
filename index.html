@@ -290,6 +290,41 @@
     .purple-mode .btn-analyze { background:linear-gradient(135deg,#9b59d0,#6c3aad); }
     .hash-type-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; background:rgba(155,89,208,0.15); color:var(--purple); margin-left:8px; letter-spacing:0.06em; }
 
+    /* ── TURNO MODE (teal) ── */
+    --teal: #0e9e8e;
+    .mode-card.turno-card:hover   { border-color:var(--teal); box-shadow:0 8px 32px rgba(14,158,142,0.15); }
+    .mode-card.turno-card::before { background:radial-gradient(ellipse at 50% 0%, rgba(14,158,142,0.12) 0%, transparent 70%); }
+    .mode-card.turno-card:hover::before { opacity:1; }
+    .turno-card .mode-label  { background:rgba(14,158,142,0.15); color:var(--teal); }
+    .turno-card:hover .mode-chip { border-color:rgba(14,158,142,0.3); color:rgba(14,158,142,0.9); }
+    .badge-turno { background:rgba(14,158,142,0.12); color:var(--teal); border:1px solid rgba(14,158,142,0.25); }
+    .teal-mode .sec  { color:var(--teal); }
+    .teal-mode .card { border-color:rgba(14,158,142,0.12); }
+    .teal-mode .btn-primary { background:linear-gradient(135deg,#0e9e8e,#0a7a6d); }
+    .teal-mode select:focus, .teal-mode input:focus, .teal-mode textarea:focus { border-color:var(--teal); box-shadow:0 0 0 3px rgba(14,158,142,0.15); }
+
+    /* ── LOGO UPLOAD ── */
+    .logo-upload-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:4px; }
+    .logo-upload-box {
+      border:2px dashed var(--border); border-radius:var(--radius); padding:18px;
+      text-align:center; cursor:pointer; transition:all var(--transition);
+      background:var(--bg-input); position:relative; overflow:hidden;
+    }
+    .logo-upload-box:hover { border-color:var(--teal); background:rgba(14,158,142,0.05); }
+    .logo-upload-box input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+    .logo-upload-box .upload-icon { font-size:24px; margin-bottom:6px; }
+    .logo-upload-box .upload-label { font-size:12px; color:var(--text-muted); }
+    .logo-upload-box .upload-name  { font-size:11px; color:var(--teal); margin-top:4px; font-weight:600; }
+    .logo-preview { width:100%; max-height:60px; object-fit:contain; margin-top:8px; display:none; }
+
+    /* ── ALERT ROWS ── */
+    .alert-rows { display:flex; flex-direction:column; gap:8px; }
+    .alert-row  { display:grid; grid-template-columns:1fr 1fr 1fr 1.5fr 1.5fr; gap:8px; align-items:center; }
+    .alert-row input, .alert-row select { padding:8px 10px; font-size:13px; }
+    .add-row-btn { font-size:12px; padding:7px 14px; border:1px dashed var(--teal); border-radius:var(--radius-sm); background:rgba(14,158,142,0.05); color:var(--teal); cursor:pointer; width:100%; margin-top:6px; transition:all var(--transition); }
+    .add-row-btn:hover { background:rgba(14,158,142,0.1); }
+    .remove-row-btn { font-size:16px; color:var(--danger); background:none; border:none; cursor:pointer; padding:4px 8px; }
+
     /* ── BOTTOM BAR ── */
     .bottom-bar { position:fixed; bottom:0; left:0; right:0; z-index:100; background:rgba(15,17,23,0.92); backdrop-filter:blur(12px); border-top:1px solid var(--border); display:flex; align-items:center; justify-content:center; gap:12px; padding:12px 24px; }
 
@@ -357,6 +392,17 @@
           <span class="mode-chip">VirusTotal</span>
           <span class="mode-chip">MalwareBazaar</span>
           <span class="mode-chip">MD5 / SHA1 / SHA256</span>
+        </div>
+      </div>
+      <div class="mode-card turno-card" onclick="setMode('turno')">
+        <span class="mode-icon">📋</span>
+        <div class="mode-label">Report Turno</div>
+        <div class="mode-name">Report Turno</div>
+        <div class="mode-desc">Genera un report Word del turno con tabella alert, criticità e segnalazioni</div>
+        <div class="mode-chips">
+          <span class="mode-chip">File .docx</span>
+          <span class="mode-chip">Loghi aziendali</span>
+          <span class="mode-chip">Tabella alert</span>
         </div>
       </div>
     </div>
@@ -682,6 +728,118 @@
     <div class="ip-results" id="hash-results"></div>
   </div>
 
+
+  <!-- ══════════════════════════════════
+       SEZIONE REPORT TURNO (TEAL)
+  ══════════════════════════════════ -->
+  <div id="section-turno" style="display:none; animation:fadeIn .35s ease;">
+    <div class="back-btn" onclick="goHome()">← Torna alla selezione</div>
+    <div class="section-badge badge-turno">📋 &nbsp;Report Turno</div>
+
+    <!-- LOGHI -->
+    <div class="card">
+      <div class="sec">Loghi intestazione <span style="font-size:10px;font-weight:400;color:var(--text-muted);margin-left:4px;">(non vengono salvati)</span></div>
+      <div class="logo-upload-grid">
+        <div class="logo-upload-box" onclick="document.getElementById('logo1-input').click()">
+          <input type="file" id="logo1-input" accept="image/*" onchange="previewLogo(this,'logo1-preview','logo1-name')">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-label">Logo sinistro</div>
+          <div class="upload-name" id="logo1-name">Clicca per caricare</div>
+          <img id="logo1-preview" class="logo-preview">
+        </div>
+        <div class="logo-upload-box" onclick="document.getElementById('logo2-input').click()">
+          <input type="file" id="logo2-input" accept="image/*" onchange="previewLogo(this,'logo2-preview','logo2-name')">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-label">Logo destro</div>
+          <div class="upload-name" id="logo2-name">Clicca per caricare</div>
+          <img id="logo2-preview" class="logo-preview">
+        </div>
+      </div>
+    </div>
+
+    <!-- INTESTAZIONE -->
+    <div class="card">
+      <div class="sec">Intestazione report</div>
+      <div class="g3">
+        <div class="fl"><label>Data turno</label><input type="date" id="t-data"></div>
+        <div class="fl"><label>Turno</label>
+          <select id="t-turno">
+            <option value="mattutino">Mattutino</option>
+            <option value="pomeridiano">Pomeridiano</option>
+            <option value="serale/notturno" selected>Serale/Notturno</option>
+          </select>
+        </div>
+        <div class="fl"><label>Cliente / Azienda</label><input type="text" id="t-cliente" placeholder="es. Azienda S.r.l."></div>
+      </div>
+    </div>
+
+    <!-- TABELLA ALERT -->
+    <div class="card">
+      <div class="sec">Alert gestiti durante il turno</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr 1.5fr;gap:8px;margin-bottom:8px;padding:0 2px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Host</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Problem</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Severity</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Timestamp</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Stato</div>
+      </div>
+      <div class="alert-rows" id="alert-rows">
+        <!-- righe dinamiche -->
+      </div>
+      <button class="add-row-btn" onclick="addAlertRow()">+ Aggiungi riga</button>
+    </div>
+
+    <!-- CRITICITÀ -->
+    <div class="card">
+      <div class="sec">Criticità riscontrate</div>
+      <div id="criticita-rows">
+        <div class="g2" style="gap:8px;margin-bottom:8px;">
+          <input type="text" placeholder="Criticità 1" id="crit-0">
+          <input type="text" placeholder="Azione eseguita" id="crit-az-0">
+        </div>
+        <div class="g2" style="gap:8px;margin-bottom:8px;">
+          <input type="text" placeholder="Criticità 2" id="crit-1">
+          <input type="text" placeholder="Azione eseguita" id="crit-az-1">
+        </div>
+        <div class="g2" style="gap:8px;">
+          <input type="text" placeholder="Criticità 3" id="crit-2">
+          <input type="text" placeholder="Azione eseguita" id="crit-az-2">
+        </div>
+      </div>
+    </div>
+
+    <!-- SEGNALAZIONI -->
+    <div class="card">
+      <div class="sec">Segnalazioni per il turno successivo</div>
+      <div id="segnal-rows">
+        <div class="g2" style="gap:8px;margin-bottom:8px;">
+          <input type="text" placeholder="Segnalazione 1" id="segn-0">
+          <select id="segn-pri-0"><option value="">Priorità</option><option>Alta</option><option>Media</option><option>Bassa</option></select>
+        </div>
+        <div class="g2" style="gap:8px;margin-bottom:8px;">
+          <input type="text" placeholder="Segnalazione 2" id="segn-1">
+          <select id="segn-pri-1"><option value="">Priorità</option><option>Alta</option><option>Media</option><option>Bassa</option></select>
+        </div>
+        <div class="g2" style="gap:8px;">
+          <input type="text" placeholder="Segnalazione 3" id="segn-2">
+          <select id="segn-pri-2"><option value="">Priorità</option><option>Alta</option><option>Media</option><option>Bassa</option></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTA FINALE -->
+    <div class="card">
+      <div class="sec">Nota di chiusura</div>
+      <div class="fl"><textarea id="t-nota" style="min-height:70px;" placeholder="es. Nessun evento è stato registrato durante il turno. Grazie e buona continuazione."></textarea></div>
+    </div>
+
+    <button class="btn-primary" onclick="generaWordTurno()">📄 Genera documento Word</button>
+    <div id="turno-download" style="display:none;margin-top:16px;" class="ip-result-card">
+      <div style="font-size:14px;font-weight:600;color:var(--teal);margin-bottom:8px;">✅ Documento pronto!</div>
+      <button class="btn-secondary" id="turno-dl-btn">⬇️ Scarica .docx</button>
+    </div>
+  </div>
+
 </div><!-- /wrapper -->
 
 <!-- BOTTOM BAR -->
@@ -715,19 +873,22 @@ function setMode(mode) {
   document.getElementById('section-phish').style.display  = mode === 'phish' ? 'block' : 'none';
   document.getElementById('section-ip').style.display     = mode === 'ip'    ? 'block' : 'none';
   document.getElementById('section-hash').style.display   = mode === 'hash'  ? 'block' : 'none';
+  document.getElementById('section-turno').style.display  = mode === 'turno' ? 'block' : 'none';
 
   const body = document.body;
-  body.classList.remove('blue-mode','green-mode','orange-mode','purple-mode');
-  if (mode === 'alert') body.classList.add('blue-mode');
+  body.classList.remove('blue-mode','green-mode','orange-mode','purple-mode','teal-mode');
+  if (mode === 'alert')      body.classList.add('blue-mode');
   else if (mode === 'phish') body.classList.add('green-mode');
   else if (mode === 'ip')   { body.classList.add('orange-mode'); loadApiKeys(); }
   else if (mode === 'hash') { body.classList.add('purple-mode'); loadApiKeys(); }
+  else if (mode === 'turno'){ body.classList.add('teal-mode'); initAlertRows(); }
 
   const logo = document.getElementById('main-logo');
   if (mode === 'alert')       { logo.style.background='linear-gradient(135deg,#5b6acf,#7c3aed)'; logo.textContent='🛡️'; }
   else if (mode === 'phish')  { logo.style.background='linear-gradient(135deg,#22c97a,#0d9e5a)'; logo.textContent='🎣'; }
   else if (mode === 'ip')     { logo.style.background='linear-gradient(135deg,#e07b2a,#c45a10)'; logo.textContent='🔍'; }
   else if (mode === 'hash')   { logo.style.background='linear-gradient(135deg,#9b59d0,#6c3aad)'; logo.textContent='#️⃣'; }
+  else if (mode === 'turno')  { logo.style.background='linear-gradient(135deg,#0e9e8e,#0a7a6d)'; logo.textContent='📋'; }
   try { saveToURL(); } catch(e){}
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -739,7 +900,8 @@ function goHome() {
   document.getElementById('section-phish').style.display  = 'none';
   document.getElementById('section-ip').style.display     = 'none';
   document.getElementById('section-hash').style.display   = 'none';
-  document.body.classList.remove('blue-mode','green-mode','orange-mode','purple-mode');
+  document.getElementById('section-turno').style.display  = 'none';
+  document.body.classList.remove('blue-mode','green-mode','orange-mode','purple-mode','teal-mode');
   const logo = document.getElementById('main-logo');
   logo.style.background = 'linear-gradient(135deg,#5b6acf,#7c3aed)';
   logo.textContent = '🛡️';
@@ -1481,6 +1643,343 @@ async function fetchMalwareBazaar(hash) {
     const r = await fetch('/.netlify/functions/malwarebazaar?hash=' + encodeURIComponent(hash));
     return r.json();
   } catch(e) { return null; }
+}
+
+
+/* ════════════════════════════════════════
+   REPORT TURNO
+════════════════════════════════════════ */
+let alertRowCount = 0;
+
+function initAlertRows() {
+  const container = document.getElementById('alert-rows');
+  if (container && container.children.length === 0) {
+    addAlertRow(); addAlertRow(); addAlertRow(); addAlertRow();
+  }
+}
+
+function addAlertRow() {
+  const container = document.getElementById('alert-rows');
+  const idx = alertRowCount++;
+  const div = document.createElement('div');
+  div.className = 'alert-row';
+  div.id = 'alert-row-' + idx;
+  div.innerHTML = `
+    <input type="text" placeholder="Host" id="ar-host-${idx}">
+    <input type="text" placeholder="Problem" id="ar-prob-${idx}">
+    <select id="ar-sev-${idx}">
+      <option value="">Severity</option>
+      <option>Critica</option><option>Alta</option><option>Media</option><option>Bassa</option>
+    </select>
+    <input type="text" placeholder="Timestamp" id="ar-ts-${idx}">
+    <div style="display:flex;gap:4px;align-items:center;">
+      <select id="ar-stato-${idx}" style="flex:1;">
+        <option value="">Stato</option>
+        <option>Preso in carico</option>
+        <option>Risolto</option>
+        <option>In monitoraggio</option>
+        <option>Escalato</option>
+        <option>Nessuna azione necessaria</option>
+      </select>
+      <button class="remove-row-btn" onclick="removeAlertRow('alert-row-${idx}')">✕</button>
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function removeAlertRow(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function previewLogo(input, previewId, nameId) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById(nameId).textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById(previewId);
+    img.src = e.target.result;
+    img.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) { resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function fmtDataIT(d) {
+  if (!d) return '';
+  const [y,m,g] = d.split('-');
+  return `${g}/${m}/${y}`;
+}
+
+async function generaWordTurno() {
+  // Raccogli dati
+  const dataVal    = document.getElementById('t-data').value;
+  const turnoVal   = document.getElementById('t-turno').value;
+  const clienteVal = document.getElementById('t-cliente').value.trim() || 'Cliente';
+
+  // Loghi
+  const logo1File = document.getElementById('logo1-input').files[0];
+  const logo2File = document.getElementById('logo2-input').files[0];
+  const [logo1b64, logo2b64] = await Promise.all([fileToBase64(logo1File), fileToBase64(logo2File)]);
+
+  // Alert rows
+  const alertRows = [];
+  document.querySelectorAll('[id^="alert-row-"]').forEach(row => {
+    const idx = row.id.replace('alert-row-','');
+    const host  = (document.getElementById('ar-host-'+idx)||{}).value||'';
+    const prob  = (document.getElementById('ar-prob-'+idx)||{}).value||'';
+    const sev   = (document.getElementById('ar-sev-'+idx)||{}).value||'';
+    const ts    = (document.getElementById('ar-ts-'+idx)||{}).value||'';
+    const stato = (document.getElementById('ar-stato-'+idx)||{}).value||'';
+    alertRows.push({ host, prob, sev, ts, stato });
+  });
+
+  // Criticità
+  const crits = [];
+  for (let i=0;i<3;i++) {
+    const c = (document.getElementById('crit-'+i)||{}).value||'';
+    const a = (document.getElementById('crit-az-'+i)||{}).value||'';
+    crits.push({c,a});
+  }
+
+  // Segnalazioni
+  const segns = [];
+  for (let i=0;i<3;i++) {
+    const s = (document.getElementById('segn-'+i)||{}).value||'';
+    const p = (document.getElementById('segn-pri-'+i)||{}).value||'';
+    segns.push({s,p});
+  }
+
+  const nota = document.getElementById('t-nota').value.trim() ||
+    `Nessun evento critico registrato durante il turno ${turnoVal} del ${fmtDataIT(dataVal)}. Grazie e buona continuazione.`;
+
+  // Genera docx via script Node
+  const payload = JSON.stringify({ dataVal, turnoVal, clienteVal, logo1b64, logo2b64, alertRows, crits, segns, nota });
+
+  // Salva payload e genera
+  window._turnoPayload = payload;
+  buildDocx(JSON.parse(payload));
+}
+
+function buildDocx(d) {
+  // Carica docx.js da CDN
+  if (window.docx) { _buildDocxNow(d); return; }
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js';
+  script.onload = () => _buildDocxNow(d);
+  script.onerror = () => alert('Impossibile caricare la libreria docx. Controlla la connessione.');
+  document.head.appendChild(script);
+}
+
+function _buildDocxNow(d) {
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+          AlignmentType, BorderStyle, WidthType, ShadingType, VerticalAlign,
+          ImageRun, Header, Footer } = window.docx;
+
+  const TEAL   = "0e9e8e";
+  const NAVY   = "1a2e44";
+  const GRAY   = "f5f7f9";
+  const WHITE  = "FFFFFF";
+  const BORDER = "d0d5e0";
+  const W = 9360; // content width DXA (A4 con 1cm margini)
+
+  const brd = (color) => ({ style: BorderStyle.SINGLE, size: 4, color: color || BORDER });
+  const borders = (c) => ({ top:brd(c), bottom:brd(c), left:brd(c), right:brd(c) });
+  const noBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const noBorders = { top:noBorder, bottom:noBorder, left:noBorder, right:noBorder };
+
+  function cell(text, opts={}) {
+    const { w=1000, bg=WHITE, bold=false, align=AlignmentType.LEFT, color=NAVY, size=18, colspan=1, vAlign=VerticalAlign.CENTER } = opts;
+    return new TableCell({
+      columnSpan: colspan,
+      width: { size: w, type: WidthType.DXA },
+      borders: borders(BORDER),
+      shading: { fill: bg, type: ShadingType.CLEAR },
+      margins: { top: 80, bottom: 80, left: 120, right: 120 },
+      verticalAlign: vAlign,
+      children: [new Paragraph({
+        alignment: align,
+        children: [new TextRun({ text: String(text||''), bold, size, font: "Arial", color })]
+      })]
+    });
+  }
+
+  function hdrCell(text, w) {
+    return cell(text, { w, bg: TEAL, bold: true, color: WHITE, size: 18, align: AlignmentType.CENTER });
+  }
+
+  function sectionHeader(label1, w1, label2, w2) {
+    return new Table({
+      width: { size: W, type: WidthType.DXA },
+      columnWidths: [w1, w2],
+      rows: [new TableRow({ children: [
+        hdrCell(label1, w1),
+        hdrCell(label2, w2)
+      ]})]
+    });
+  }
+
+  // ── Intestazione con loghi ──────────────────────────────
+  const headerChildren = [];
+
+  function makeLogoImg(b64, ext) {
+    try {
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+      return new ImageRun({ data: bytes.buffer, transformation: { width: 120, height: 40 }, type: ext });
+    } catch(e) { return null; }
+  }
+
+  // Logo sx
+  if (d.logo1b64) {
+    const ext = (document.getElementById('logo1-input').files[0]?.type||'image/png').split('/')[1];
+    const img = makeLogoImg(d.logo1b64, ext);
+    if (img) headerChildren.push(new Paragraph({ alignment: AlignmentType.LEFT, children: [img], spacing:{ before:0, after:0 } }));
+  }
+
+  // Titolo centrato
+  headerChildren.push(new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 80, after: 60 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: TEAL, space: 4 } },
+    children: [
+      new TextRun({ text: `Report Turno ${d.turnoVal.charAt(0).toUpperCase()+d.turnoVal.slice(1)}`, bold: true, size: 32, font: "Arial", color: NAVY }),
+      new TextRun({ text: `   ${d.clienteVal}  —  ${fmtDataIT_js(d.dataVal)}`, size: 22, font: "Arial", color: "5a6a7e" })
+    ]
+  }));
+
+  // Logo dx
+  if (d.logo2b64) {
+    const ext2 = (document.getElementById('logo2-input').files[0]?.type||'image/png').split('/')[1];
+    const img2 = makeLogoImg(d.logo2b64, ext2);
+    if (img2) headerChildren.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [img2], spacing:{before:0,after:0} }));
+  }
+
+  function fmtDataIT_js(d) {
+    if (!d) return '';
+    const [y,m,g] = d.split('-');
+    return `${g}/${m}/${y}`;
+  }
+
+  // ── Intro ──────────────────────────────────────────────
+  const intro = [
+    new Paragraph({ spacing:{before:240,after:80}, children:[new TextRun({text:'Buongiorno,', size:22, font:"Arial", color:NAVY})] }),
+    new Paragraph({
+      spacing:{before:0,after:240},
+      children:[new TextRun({
+        text:`di seguito una panoramica di dettaglio relativa agli alert e alle attività gestite durante il turno ${d.turnoVal}.`,
+        size:22, font:"Arial", color:NAVY
+      })]
+    }),
+  ];
+
+  // ── Tabella Alert ──────────────────────────────────────
+  const alertColW = [1500, 2000, 1000, 1500, 3360];
+  const alertHeaderRow = new TableRow({ children: [
+    hdrCell('Host', alertColW[0]),
+    hdrCell('Problem', alertColW[1]),
+    hdrCell('Severity', alertColW[2]),
+    hdrCell('Timestamp', alertColW[3]),
+    hdrCell('Stato', alertColW[4]),
+  ]});
+
+  const alertDataRows = d.alertRows.map((r, i) => new TableRow({ children: [
+    cell(r.host,  { w: alertColW[0], bg: i%2===0?GRAY:WHITE }),
+    cell(r.prob,  { w: alertColW[1], bg: i%2===0?GRAY:WHITE }),
+    cell(r.sev,   { w: alertColW[2], bg: i%2===0?GRAY:WHITE, align:AlignmentType.CENTER,
+      color: r.sev==='Critica'?'c0394f': r.sev==='Alta'?'e07b2a': r.sev==='Media'?'b07d10': NAVY, bold: r.sev==='Critica'||r.sev==='Alta' }),
+    cell(r.ts,    { w: alertColW[3], bg: i%2===0?GRAY:WHITE, align:AlignmentType.CENTER }),
+    cell(r.stato, { w: alertColW[4], bg: i%2===0?GRAY:WHITE }),
+  ]}));
+
+  const alertTable = new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: alertColW,
+    rows: [alertHeaderRow, ...alertDataRows]
+  });
+
+  // ── Tabella Criticità ──────────────────────────────────
+  const critColW = [W/2, W/2];
+  const critTable = new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: critColW,
+    rows: [
+      new TableRow({ children: [hdrCell('Criticità riscontrate', critColW[0]), hdrCell('Azione eseguita', critColW[1])] }),
+      ...d.crits.map((r,i) => new TableRow({ children: [
+        cell(r.c, { w: critColW[0], bg: i%2===0?GRAY:WHITE }),
+        cell(r.a, { w: critColW[1], bg: i%2===0?GRAY:WHITE }),
+      ]}))
+    ]
+  });
+
+  // ── Tabella Segnalazioni ───────────────────────────────
+  const segnColW = [W*2/3|0, W - (W*2/3|0)];
+  const segnTable = new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: segnColW,
+    rows: [
+      new TableRow({ children: [hdrCell('Segnalazioni per il turno successivo', segnColW[0]), hdrCell('Priorità', segnColW[1])] }),
+      ...d.segns.map((r,i) => {
+        const priColor = r.p==='Alta'?'c0394f': r.p==='Media'?'e07b2a': r.p==='Bassa'?'1a7a45': NAVY;
+        return new TableRow({ children: [
+          cell(r.s, { w: segnColW[0], bg: i%2===0?GRAY:WHITE }),
+          cell(r.p, { w: segnColW[1], bg: i%2===0?GRAY:WHITE, align:AlignmentType.CENTER, color:priColor, bold: !!r.p }),
+        ]});
+      })
+    ]
+  });
+
+  // ── Nota finale ────────────────────────────────────────
+  const notaPara = [
+    new Paragraph({ spacing:{before:300,after:80}, children:[new TextRun({text:d.nota, size:22, font:"Arial", color:NAVY})] }),
+    new Paragraph({ spacing:{before:120,after:0}, children:[new TextRun({text:'Saluti', size:22, font:"Arial", color:NAVY})] }),
+  ];
+
+  // ── Documento ──────────────────────────────────────────
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          size: { width: 11906, height: 16838 },
+          margin: { top: 850, right: 850, bottom: 850, left: 850 }
+        }
+      },
+      children: [
+        ...headerChildren,
+        ...intro,
+        alertTable,
+        new Paragraph({ spacing:{before:240,after:0}, children:[new TextRun('')] }),
+        critTable,
+        new Paragraph({ spacing:{before:240,after:0}, children:[new TextRun('')] }),
+        segnTable,
+        ...notaPara,
+      ]
+    }]
+  });
+
+  window.docx.Packer.toBlob(doc).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const btn = document.getElementById('turno-dl-btn');
+    btn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Report_Turno_${d.turnoVal}_${d.dataVal||'data'}.docx`;
+      a.click();
+    };
+    document.getElementById('turno-download').style.display = 'block';
+    document.getElementById('turno-download').scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
 }
 
 
