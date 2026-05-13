@@ -740,15 +740,15 @@
     <div class="card">
       <div class="sec">Loghi intestazione <span style="font-size:10px;font-weight:400;color:var(--text-muted);margin-left:4px;">(non vengono salvati)</span></div>
       <div class="logo-upload-grid">
-        <div class="logo-upload-box" onclick="document.getElementById('logo1-input').click()">
-          <input type="file" id="logo1-input" accept="image/*" onchange="previewLogo(this,'logo1-preview','logo1-name')">
+        <div class="logo-upload-box">
+          <input type="file" id="logo1-input" accept="image/*" onchange="previewLogo(this,'logo1-preview','logo1-name')" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:2;">
           <div class="upload-icon">🖼️</div>
           <div class="upload-label">Logo sinistro</div>
           <div class="upload-name" id="logo1-name">Clicca per caricare</div>
           <img id="logo1-preview" class="logo-preview">
         </div>
-        <div class="logo-upload-box" onclick="document.getElementById('logo2-input').click()">
-          <input type="file" id="logo2-input" accept="image/*" onchange="previewLogo(this,'logo2-preview','logo2-name')">
+        <div class="logo-upload-box">
+          <input type="file" id="logo2-input" accept="image/*" onchange="previewLogo(this,'logo2-preview','logo2-name')" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:2;">
           <div class="upload-icon">🖼️</div>
           <div class="upload-label">Logo destro</div>
           <div class="upload-name" id="logo2-name">Clicca per caricare</div>
@@ -792,39 +792,23 @@
     <!-- CRITICITÀ -->
     <div class="card">
       <div class="sec">Criticità riscontrate</div>
-      <div id="criticita-rows">
-        <div class="g2" style="gap:8px;margin-bottom:8px;">
-          <input type="text" placeholder="Criticità 1" id="crit-0">
-          <input type="text" placeholder="Azione eseguita" id="crit-az-0">
-        </div>
-        <div class="g2" style="gap:8px;margin-bottom:8px;">
-          <input type="text" placeholder="Criticità 2" id="crit-1">
-          <input type="text" placeholder="Azione eseguita" id="crit-az-1">
-        </div>
-        <div class="g2" style="gap:8px;">
-          <input type="text" placeholder="Criticità 3" id="crit-2">
-          <input type="text" placeholder="Azione eseguita" id="crit-az-2">
-        </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;padding:0 2px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Criticità</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Azione eseguita</div>
       </div>
+      <div id="criticita-rows"></div>
+      <button class="add-row-btn" onclick="addCritRow()">+ Aggiungi criticità</button>
     </div>
 
     <!-- SEGNALAZIONI -->
     <div class="card">
       <div class="sec">Segnalazioni per il turno successivo</div>
-      <div id="segnal-rows">
-        <div class="g2" style="gap:8px;margin-bottom:8px;">
-          <input type="text" placeholder="Segnalazione 1" id="segn-0">
-          <select id="segn-pri-0"><option value="">Priorità</option><option>Alta</option><option>Media</option><option>Bassa</option></select>
-        </div>
-        <div class="g2" style="gap:8px;margin-bottom:8px;">
-          <input type="text" placeholder="Segnalazione 2" id="segn-1">
-          <select id="segn-pri-1"><option value="">Priorità</option><option>Alta</option><option>Media</option><option>Bassa</option></select>
-        </div>
-        <div class="g2" style="gap:8px;">
-          <input type="text" placeholder="Segnalazione 3" id="segn-2">
-          <select id="segn-pri-2"><option value="">Priorità</option><option>Alta</option><option>Media</option><option>Bassa</option></select>
-        </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;padding:0 2px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Segnalazione</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Priorità</div>
       </div>
+      <div id="segnal-rows"></div>
+      <button class="add-row-btn" onclick="addSegnRow()">+ Aggiungi segnalazione</button>
     </div>
 
     <!-- NOTA FINALE -->
@@ -1223,6 +1207,20 @@ function resetForm() {
   currentLang = 'it';
   document.getElementById("lang-it").className = "lang-active";
   document.getElementById("lang-en").className = "";
+
+  // Reset turno fields
+  ['t-data','t-cliente','t-nota'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const tTurno = document.getElementById('t-turno'); if(tTurno) tTurno.value='serale/notturno';
+  // Svuota righe dinamiche
+  ['alert-rows','criticita-rows','segnal-rows'].forEach(id => {
+    const el=document.getElementById(id); if(el) el.innerHTML='';
+  });
+  alertRowCount=0; critRowCount=0; segnRowCount=0;
+  // Reset loghi
+  ['logo1-input','logo2-input'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['logo1-preview','logo2-preview'].forEach(id => { const el=document.getElementById(id); if(el){ el.src=''; el.style.display='none'; }});
+  ['logo1-name','logo2-name'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent='Clicca per caricare'; });
+  const dlArea=document.getElementById('turno-download'); if(dlArea) dlArea.style.display='none';
 
   try { history.replaceState(null,"",location.pathname); } catch(e){}
   window.scrollTo({top:0,behavior:"smooth"});
@@ -1651,11 +1649,44 @@ async function fetchMalwareBazaar(hash) {
 ════════════════════════════════════════ */
 let alertRowCount = 0;
 
+let critRowCount = 0;
+let segnRowCount = 0;
+
 function initAlertRows() {
-  const container = document.getElementById('alert-rows');
-  if (container && container.children.length === 0) {
-    addAlertRow(); addAlertRow(); addAlertRow(); addAlertRow();
-  }
+  const alertContainer = document.getElementById('alert-rows');
+  if (alertContainer && alertContainer.children.length === 0) addAlertRow();
+  const critContainer  = document.getElementById('criticita-rows');
+  if (critContainer  && critContainer.children.length  === 0) addCritRow();
+  const segnContainer  = document.getElementById('segnal-rows');
+  if (segnContainer  && segnContainer.children.length  === 0) addSegnRow();
+}
+
+function addCritRow() {
+  const container = document.getElementById('criticita-rows');
+  const idx = critRowCount++;
+  const div = document.createElement('div');
+  div.id = 'crit-row-' + idx;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;';
+  div.innerHTML = `
+    <input type="text" placeholder="Criticità" id="crit-${idx}">
+    <input type="text" placeholder="Azione eseguita" id="crit-az-${idx}">
+    <button class="remove-row-btn" onclick="document.getElementById('crit-row-${idx}').remove()">✕</button>
+  `;
+  container.appendChild(div);
+}
+
+function addSegnRow() {
+  const container = document.getElementById('segnal-rows');
+  const idx = segnRowCount++;
+  const div = document.createElement('div');
+  div.id = 'segn-row-' + idx;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;';
+  div.innerHTML = `
+    <input type="text" placeholder="Segnalazione" id="segn-${idx}">
+    <select id="segn-pri-${idx}"><option value="">Priorità</option><option>Alta</option><option>Media</option><option>Bassa</option></select>
+    <button class="remove-row-btn" onclick="document.getElementById('segn-row-${idx}').remove()">✕</button>
+  `;
+  container.appendChild(div);
 }
 
 function addAlertRow() {
@@ -1744,21 +1775,25 @@ async function generaWordTurno() {
     alertRows.push({ host, prob, sev, ts, stato });
   });
 
-  // Criticità
+  // Criticità — raccogli tutte le righe dinamiche
   const crits = [];
-  for (let i=0;i<3;i++) {
-    const c = (document.getElementById('crit-'+i)||{}).value||'';
-    const a = (document.getElementById('crit-az-'+i)||{}).value||'';
-    crits.push({c,a});
-  }
+  document.querySelectorAll('[id^="crit-row-"]').forEach(row => {
+    const idx = row.id.replace('crit-row-','');
+    const c = (document.getElementById('crit-'+idx)||{}).value||'';
+    const a = (document.getElementById('crit-az-'+idx)||{}).value||'';
+    if (c||a) crits.push({c,a});
+  });
+  if (crits.length === 0) crits.push({c:'',a:''});
 
-  // Segnalazioni
+  // Segnalazioni — raccogli tutte le righe dinamiche
   const segns = [];
-  for (let i=0;i<3;i++) {
-    const s = (document.getElementById('segn-'+i)||{}).value||'';
-    const p = (document.getElementById('segn-pri-'+i)||{}).value||'';
-    segns.push({s,p});
-  }
+  document.querySelectorAll('[id^="segn-row-"]').forEach(row => {
+    const idx = row.id.replace('segn-row-','');
+    const s = (document.getElementById('segn-'+idx)||{}).value||'';
+    const p = (document.getElementById('segn-pri-'+idx)||{}).value||'';
+    if (s||p) segns.push({s,p});
+  });
+  if (segns.length === 0) segns.push({s:'',p:''});
 
   const nota = document.getElementById('t-nota').value.trim() ||
     `Nessun evento critico registrato durante il turno ${turnoVal} del ${fmtDataIT(dataVal)}. Grazie e buona continuazione.`;
@@ -1775,7 +1810,7 @@ function buildDocx(d) {
   // Carica docx.js da CDN
   if (window.docx) { _buildDocxNow(d); return; }
   const script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js';
+  script.src = 'https://unpkg.com/docx@8.5.0/build/index.umd.js';
   script.onload = () => _buildDocxNow(d);
   script.onerror = () => alert('Impossibile caricare la libreria docx. Controlla la connessione.');
   document.head.appendChild(script);
