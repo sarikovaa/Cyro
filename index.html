@@ -2059,35 +2059,55 @@ function _buildDocxNow(d) {
     let rows = d.excelRows.slice(1);
 
     // ── Filtraggio orario Zabbix ──────────────────────────
-    // Usa il tipo turno selezionato dall'utente:
-    //   feriale  → 17:00 – 08:00 (a cavallo mezzanotte)
-    //   weekend  → 08:00 – 08:00 (+24h, overnight)
-    // Se nessun tipo è selezionato, non filtra.
+    // Filtra per TIMESTAMP ESATTO (data + ora), non solo per orario.
+    // Costruisce un range [rangeStart, rangeEnd] a partire dalla data turno:
+    //   feriale:  dataT 17:00  →  dataT+1 08:00
+    //   weekend:  dataT 08:00  →  dataT+1 08:00
+    //   manuale:  dataT HH:MM  →  dataT(+1 se overnight) HH:MM
+    // Se nessun tipo selezionato e nessun override → non filtra.
 
-    function toMinutes(hhmm) {
-      const [h, m] = hhmm.split(':').map(Number);
-      return h * 60 + m;
+    const tipoTurno  = document.getElementById('tipo-turno-val').value;
+    const manualFrom = document.getElementById('zabbix-time-from').value;
+    const manualTo   = document.getElementById('zabbix-time-to').value;
+
+    let rangeStart = null, rangeEnd = null;
+
+    if (d.dataVal) {
+      // Costruisci la data base dal campo "Data turno"
+      const baseDate = new Date(d.dataVal + 'T00:00:00');
+
+      function setHM(date, hhmm) {
+        const [h, m] = hhmm.split(':').map(Number);
+        const d2 = new Date(date);
+        d2.setHours(h, m, 0, 0);
+        return d2;
+      }
+
+      // La data inserita è il giorno in cui si fa il report (fine turno).
+      // Il turno è iniziato il giorno PRECEDENTE.
+      const prevDate = new Date(baseDate);
+      prevDate.setDate(prevDate.getDate() - 1);
+
+      if (manualFrom || manualTo) {
+        // Override manuale: inizio = giorno prima, fine = giorno report
+        const startH = manualFrom || '00:00';
+        const endH   = manualTo   || '23:59';
+        rangeStart = setHM(prevDate, startH);
+        rangeEnd   = setHM(baseDate, endH);
+      } else if (tipoTurno === 'feriale') {
+        // Giorno prima 17:00 → giorno report 08:00
+        rangeStart = setHM(prevDate, '17:00');
+        rangeEnd   = setHM(baseDate, '08:00');
+      } else if (tipoTurno === 'weekend') {
+        // Giorno prima 08:00 → giorno report 08:00
+        rangeStart = setHM(prevDate, '08:00');
+        rangeEnd   = setHM(baseDate, '08:00');
+      }
     }
 
-    const tipoTurno    = document.getElementById('tipo-turno-val').value;
-    const manualFrom   = document.getElementById('zabbix-time-from').value;
-    const manualTo     = document.getElementById('zabbix-time-to').value;
-
-    let fromMin, toMin;
-    if (manualFrom || manualTo) {
-      // Override manuale ha la precedenza
-      fromMin = manualFrom ? toMinutes(manualFrom) : 0;
-      toMin   = manualTo   ? toMinutes(manualTo)   : 24 * 60;
-    } else if (tipoTurno === 'feriale') {
-      fromMin = toMinutes('17:00');
-      toMin   = toMinutes('08:00');
-    } else if (tipoTurno === 'weekend') {
-      fromMin = toMinutes('08:00');
-      toMin   = toMinutes('08:00'); // overnight=true → copre le 24h
-    }
-
-    if (fromMin !== undefined) {
-      const overnight = toMin <= fromMin; // fascia a cavallo della mezzanotte
+    if (rangeStart && rangeEnd) {
+      const rsTime = rangeStart.getTime();
+      const reTime = rangeEnd.getTime();
       const timeIdx2 = headers.findIndex(h => h === 'Time');
       if (timeIdx2 >= 0) {
         rows = rows.filter(row => {
@@ -2103,15 +2123,10 @@ function _buildDocxNow(d) {
             if (!isNaN(parsed.getTime())) eventDate = parsed;
           }
 
-          if (!eventDate) return true; // impossibile parsare → includi
+          if (!eventDate) return false; // impossibile parsare → escludi
 
-          const eventMin = eventDate.getHours() * 60 + eventDate.getMinutes();
-
-          if (overnight) {
-            return eventMin >= fromMin || eventMin <= toMin;
-          } else {
-            return eventMin >= fromMin && eventMin <= toMin;
-          }
+          const evTime = eventDate.getTime();
+          return evTime >= rsTime && evTime <= reTime;
         });
       }
     }
