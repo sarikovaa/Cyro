@@ -1811,33 +1811,8 @@ async function generaWordTurno() {
     alertRows.push({ host, prob, sev, ts, stato, az });
   });
 
-  // Criticità — raccogli tutte le righe dinamiche
-  const crits = [];
-  document.querySelectorAll('[id^="crit-row-"]').forEach(row => {
-    const idx = row.id.replace('crit-row-','');
-    const c = (document.getElementById('crit-'+idx)||{}).value||'';
-    const a = (document.getElementById('crit-az-'+idx)||{}).value||'';
-    if (c||a) crits.push({c,a});
-  });
-  if (crits.length === 0) crits.push({c:'',a:''});
-
-  // Segnalazioni — raccogli tutte le righe dinamiche
-  const segns = [];
-  document.querySelectorAll('[id^="segn-row-"]').forEach(row => {
-    const idx = row.id.replace('segn-row-','');
-    const s = (document.getElementById('segn-'+idx)||{}).value||'';
-    const p = (document.getElementById('segn-pri-'+idx)||{}).value||'';
-    if (s||p) segns.push({s,p});
-  });
-  if (segns.length === 0) segns.push({s:'',p:''});
-
-  const nota = document.getElementById('t-nota').value.trim() ||
-    `Nessun evento critico registrato durante il turno ${turnoVal} del ${fmtDataIT(dataVal)}. Grazie e buona continuazione.`;
-
-  // Genera docx via script Node
-  const payload = JSON.stringify({ dataVal, turnoVal, clienteVal, logo1b64, logo2b64, alertRows, crits, segns, nota });
-
   // Salva payload e genera
+  const payload = JSON.stringify({ dataVal, clienteVal, logo1b64, logo2b64, alertRows, excelRows });
   window._turnoPayload = payload;
   buildDocx(JSON.parse(payload));
 }
@@ -1846,7 +1821,7 @@ function buildDocx(d) {
   // Carica docx.js da CDN
   if (window.docx) { _buildDocxNow(d); return; }
   const script = document.createElement('script');
-  script.src = 'https://unpkg.com/docx@8.5.0/build/index.umd.js';
+  script.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js';
   script.onload = () => _buildDocxNow(d);
   script.onerror = () => alert('Impossibile caricare la libreria docx. Controlla la connessione.');
   document.head.appendChild(script);
