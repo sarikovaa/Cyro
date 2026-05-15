@@ -1824,7 +1824,7 @@ function buildDocx(d) {
   // Carica docx.js da CDN
   if (window.docx) { _buildDocxNow(d); return; }
   const script = document.createElement('script');
-  script.src = 'https://unpkg.com/docx@7.8.2/build/index.umd.min.js';
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/docx/7.8.2/docx.js';
   script.onload = () => _buildDocxNow(d);
   script.onerror = () => alert('Impossibile caricare la libreria docx. Controlla la connessione.');
   document.head.appendChild(script);
