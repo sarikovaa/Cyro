@@ -1734,7 +1734,7 @@ function _parseExcel(file) {
     const raw = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
     // Colonne da escludere
-    const EXCLUDE = ['Ack','Actions','Tags'];
+    const EXCLUDE = ['Ack','Actions','Tags','Recovery time'];
     const headers = raw[0] || [];
     const keepIdx = headers.map((h,i) => EXCLUDE.includes(h) ? -1 : i).filter(i => i >= 0);
     const keepHeaders = keepIdx.map(i => headers[i]);
@@ -1982,7 +1982,38 @@ function _buildDocxNow(d) {
   let zabbixTableEl = null;
   if (d.excelRows && d.excelRows.length > 1) {
     const headers = d.excelRows[0];
-    const rows = d.excelRows.slice(1);
+    let rows = d.excelRows.slice(1);
+
+    // Filtra righe: tieni solo eventi dalle 17:00 del giorno del report in poi
+    if (d.dataVal) {
+      const reportDate = new Date(d.dataVal);
+      reportDate.setHours(17, 0, 0, 0); // Imposta alle 17:00 del giorno del report
+      const reportTimestamp = reportDate.getTime();
+
+      const timeIdx = headers.findIndex(h => h === 'Time');
+      if (timeIdx >= 0) {
+        rows = rows.filter(row => {
+          const timeVal = row[timeIdx];
+          if (!timeVal || timeVal === '') return false;
+          
+          // Gestisci timestamp Excel numerici
+          const num = parseFloat(timeVal);
+          if (!isNaN(num) && num > 40000 && num < 60000) {
+            const eventDate = new Date((num - 25569) * 86400 * 1000);
+            return eventDate.getTime() >= reportTimestamp;
+          }
+          
+          // Gestisci date in formato stringa (ISO o altro)
+          const eventDate = new Date(timeVal);
+          if (!isNaN(eventDate.getTime())) {
+            return eventDate.getTime() >= reportTimestamp;
+          }
+          
+          return true; // Se non riesco a parsare, includo la riga
+        });
+      }
+    }
+
     const colCount = headers.length;
     const colW = Math.floor(W / colCount);
     const colWidths = headers.map((_,i) => i === colCount-1 ? W - colW*(colCount-1) : colW);
