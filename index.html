@@ -1811,6 +1811,9 @@ async function generaWordTurno() {
     alertRows.push({ host, prob, sev, ts, stato, az });
   });
 
+  // Dati Excel Zabbix
+  const excelRows = (window._excelRows && window._excelRows.length > 0) ? window._excelRows : [];
+
   // Salva payload e genera
   const payload = JSON.stringify({ dataVal, clienteVal, logo1b64, logo2b64, alertRows, excelRows });
   window._turnoPayload = payload;
@@ -1821,7 +1824,7 @@ function buildDocx(d) {
   // Carica docx.js da CDN
   if (window.docx) { _buildDocxNow(d); return; }
   const script = document.createElement('script');
-  script.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js';
+  script.src = 'https://unpkg.com/docx@7.8.2/build/index.umd.min.js';
   script.onload = () => _buildDocxNow(d);
   script.onerror = () => alert('Impossibile caricare la libreria docx. Controlla la connessione.');
   document.head.appendChild(script);
