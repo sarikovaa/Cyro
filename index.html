@@ -798,6 +798,22 @@
         <div class="upload-label">Carica il file .xlsx esportato da Zabbix</div>
         <div class="upload-name" id="excel-name">Clicca per caricare</div>
       </div>
+      <!-- FILTRO ORARIO -->
+      <div style="margin-top:16px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">⏱ Filtra log per fascia oraria <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(lascia vuoto per non filtrare)</span></div>
+        <div class="g2">
+          <div class="fl">
+            <label>Dalle ore</label>
+            <input type="time" id="zabbix-time-from" placeholder="es. 17:00">
+          </div>
+          <div class="fl">
+            <label>Alle ore</label>
+            <input type="time" id="zabbix-time-to" placeholder="es. 09:00">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:-6px;padding-left:2px;">Se "Alle" è precedente a "Dalle", il filtro considera la fascia a cavallo della mezzanotte (es. 17:00 → 09:00 del giorno dopo).</div>
+      </div>
+
       <div id="excel-preview-table" style="margin-top:12px;overflow-x:auto;display:none;">
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Anteprima (colonne Ack, Actions, Tags escluse automaticamente):</div>
         <div id="excel-preview-content"></div>
@@ -1921,8 +1937,7 @@ function _buildDocxNow(d) {
     spacing: { before: 80, after: 60 },
     border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: TEAL, space: 4 } },
     children: [
-      new TextRun({ text: `Report Turno`, bold: true, size: 32, font: "Arial", color: NAVY }),
-      new TextRun({ text: `   ${d.clienteVal}  —  ${fmtDataIT_js(d.dataVal)}`, size: 22, font: "Arial", color: "5a6a7e" })
+      new TextRun({ text: `Report ${d.clienteVal}  ${fmtDataIT_js(d.dataVal)}`, bold: true, size: 32, font: "Arial", color: NAVY })
     ]
   }));
 
@@ -1984,32 +1999,44 @@ function _buildDocxNow(d) {
     const headers = d.excelRows[0];
     let rows = d.excelRows.slice(1);
 
-    // Filtra righe: tieni solo eventi dalle 17:00 del giorno del report in poi
-    if (d.dataVal) {
-      const reportDate = new Date(d.dataVal);
-      reportDate.setHours(17, 0, 0, 0); // Imposta alle 17:00 del giorno del report
-      const reportTimestamp = reportDate.getTime();
+    // Filtra righe per fascia oraria impostata dall'utente
+    const timeFromInput = document.getElementById('zabbix-time-from').value; // "HH:MM"
+    const timeToInput   = document.getElementById('zabbix-time-to').value;   // "HH:MM"
 
-      const timeIdx = headers.findIndex(h => h === 'Time');
-      if (timeIdx >= 0) {
+    if (timeFromInput || timeToInput) {
+      const timeIdx2 = headers.findIndex(h => h === 'Time');
+      if (timeIdx2 >= 0) {
+        function toMinutes(hhmm) {
+          const [h, m] = hhmm.split(':').map(Number);
+          return h * 60 + m;
+        }
+        const fromMin  = timeFromInput ? toMinutes(timeFromInput) : 0;
+        const toMin    = timeToInput   ? toMinutes(timeToInput)   : 24 * 60;
+        const overnight = toMin <= fromMin; // fascia a cavallo mezzanotte (es. 17:00→09:00)
+
         rows = rows.filter(row => {
-          const timeVal = row[timeIdx];
+          const timeVal = row[timeIdx2];
           if (!timeVal || timeVal === '') return false;
-          
-          // Gestisci timestamp Excel numerici
+
+          let eventDate = null;
           const num = parseFloat(timeVal);
           if (!isNaN(num) && num > 40000 && num < 60000) {
-            const eventDate = new Date((num - 25569) * 86400 * 1000);
-            return eventDate.getTime() >= reportTimestamp;
+            eventDate = new Date((num - 25569) * 86400 * 1000);
+          } else {
+            const parsed = new Date(timeVal);
+            if (!isNaN(parsed.getTime())) eventDate = parsed;
           }
-          
-          // Gestisci date in formato stringa (ISO o altro)
-          const eventDate = new Date(timeVal);
-          if (!isNaN(eventDate.getTime())) {
-            return eventDate.getTime() >= reportTimestamp;
+
+          if (!eventDate) return true; // impossibile parsare → includi
+
+          const eventMin = eventDate.getHours() * 60 + eventDate.getMinutes();
+
+          if (overnight) {
+            // es. 17:00–09:00: include eventi >= 17:00 oppure <= 09:00
+            return eventMin >= fromMin || eventMin <= toMin;
+          } else {
+            return eventMin >= fromMin && eventMin <= toMin;
           }
-          
-          return true; // Se non riesco a parsare, includo la riga
         });
       }
     }
