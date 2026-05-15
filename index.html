@@ -1821,13 +1821,31 @@ async function generaWordTurno() {
 }
 
 function buildDocx(d) {
-  // Carica docx.js da CDN
+  // Carica docx.js da CDN, con fallback automatico su più sorgenti
   if (window.docx) { _buildDocxNow(d); return; }
-  const script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/docx/7.8.2/docx.js';
-  script.onload = () => _buildDocxNow(d);
-  script.onerror = () => alert('Impossibile caricare la libreria docx. Controlla la connessione.');
-  document.head.appendChild(script);
+
+  const sources = [
+    'https://cdn.jsdelivr.net/npm/docx@7.3.0/build/index.js',
+    'https://unpkg.com/docx@7.3.0/build/index.js',
+    'https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.js'
+  ];
+
+  let i = 0;
+  const tryNext = () => {
+    if (i >= sources.length) {
+      alert('Impossibile caricare la libreria docx. Controlla la connessione.');
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = sources[i++];
+    script.onload = () => {
+      if (window.docx) { _buildDocxNow(d); }
+      else { tryNext(); }
+    };
+    script.onerror = tryNext;
+    document.head.appendChild(script);
+  };
+  tryNext();
 }
 
 function _buildDocxNow(d) {
