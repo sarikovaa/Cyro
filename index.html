@@ -319,7 +319,7 @@
 
     /* ── ALERT ROWS ── */
     .alert-rows { display:flex; flex-direction:column; gap:8px; }
-    .alert-row  { display:grid; grid-template-columns:1fr 1fr 1fr 1.5fr 1.5fr; gap:8px; align-items:center; }
+    .alert-row  { display:grid; grid-template-columns:1fr 1.2fr 0.8fr 1.2fr 1.2fr 1.5fr; gap:8px; align-items:center; }
     .alert-row input, .alert-row select { padding:8px 10px; font-size:13px; }
     .add-row-btn { font-size:12px; padding:7px 14px; border:1px dashed var(--teal); border-radius:var(--radius-sm); background:rgba(14,158,142,0.05); color:var(--teal); cursor:pointer; width:100%; margin-top:6px; transition:all var(--transition); }
     .add-row-btn:hover { background:rgba(14,158,142,0.1); }
@@ -760,15 +760,8 @@
     <!-- INTESTAZIONE -->
     <div class="card">
       <div class="sec">Intestazione report</div>
-      <div class="g3">
+      <div class="g2">
         <div class="fl"><label>Data turno</label><input type="date" id="t-data"></div>
-        <div class="fl"><label>Turno</label>
-          <select id="t-turno">
-            <option value="mattutino">Mattutino</option>
-            <option value="pomeridiano">Pomeridiano</option>
-            <option value="serale/notturno" selected>Serale/Notturno</option>
-          </select>
-        </div>
         <div class="fl"><label>Cliente / Azienda</label><input type="text" id="t-cliente" placeholder="es. Azienda S.r.l."></div>
       </div>
     </div>
@@ -776,12 +769,13 @@
     <!-- TABELLA ALERT -->
     <div class="card">
       <div class="sec">Alert gestiti durante il turno</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr 1.5fr;gap:8px;margin-bottom:8px;padding:0 2px;">
+      <div style="display:grid;grid-template-columns:1fr 1.2fr 0.8fr 1.2fr 1.2fr 1.5fr;gap:8px;margin-bottom:8px;padding:0 2px;">
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Host</div>
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Problem</div>
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Severity</div>
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Timestamp</div>
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Stato</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Azione eseguita</div>
       </div>
       <div class="alert-rows" id="alert-rows">
         <!-- righe dinamiche -->
@@ -789,32 +783,25 @@
       <button class="add-row-btn" onclick="addAlertRow()">+ Aggiungi riga</button>
     </div>
 
-    <!-- CRITICITÀ -->
-    <div class="card">
-      <div class="sec">Criticità riscontrate</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;padding:0 2px;">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Criticità</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Azione eseguita</div>
-      </div>
-      <div id="criticita-rows"></div>
-      <button class="add-row-btn" onclick="addCritRow()">+ Aggiungi criticità</button>
-    </div>
 
-    <!-- SEGNALAZIONI -->
-    <div class="card">
-      <div class="sec">Segnalazioni per il turno successivo</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;padding:0 2px;">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Segnalazione</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Priorità</div>
-      </div>
-      <div id="segnal-rows"></div>
-      <button class="add-row-btn" onclick="addSegnRow()">+ Aggiungi segnalazione</button>
-    </div>
 
-    <!-- NOTA FINALE -->
+
+
+
+
+    <!-- UPLOAD EXCEL ZABBIX -->
     <div class="card">
-      <div class="sec">Nota di chiusura</div>
-      <div class="fl"><textarea id="t-nota" style="min-height:70px;" placeholder="es. Nessun evento è stato registrato durante il turno. Grazie e buona continuazione."></textarea></div>
+      <div class="sec">Export Zabbix Problems <span style="font-size:10px;font-weight:400;color:var(--text-muted);margin-left:4px;">(opzionale — verrà inserito nel documento)</span></div>
+      <div class="logo-upload-box" style="text-align:center;padding:24px;">
+        <input type="file" id="excel-input" accept=".xlsx,.xls" onchange="previewExcel(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:2;">
+        <div class="upload-icon">📊</div>
+        <div class="upload-label">Carica il file .xlsx esportato da Zabbix</div>
+        <div class="upload-name" id="excel-name">Clicca per caricare</div>
+      </div>
+      <div id="excel-preview-table" style="margin-top:12px;overflow-x:auto;display:none;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Anteprima (colonne Ack, Actions, Tags escluse automaticamente):</div>
+        <div id="excel-preview-content"></div>
+      </div>
     </div>
 
     <button class="btn-primary" onclick="generaWordTurno()">📄 Genera documento Word</button>
@@ -1209,17 +1196,20 @@ function resetForm() {
   document.getElementById("lang-en").className = "";
 
   // Reset turno fields
-  ['t-data','t-cliente','t-nota'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  const tTurno = document.getElementById('t-turno'); if(tTurno) tTurno.value='serale/notturno';
-  // Svuota righe dinamiche
-  ['alert-rows','criticita-rows','segnal-rows'].forEach(id => {
-    const el=document.getElementById(id); if(el) el.innerHTML='';
-  });
-  alertRowCount=0; critRowCount=0; segnRowCount=0;
+  ['t-data','t-cliente'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  // Svuota righe alert
+  const alertContainer = document.getElementById('alert-rows');
+  if(alertContainer) alertContainer.innerHTML='';
+  alertRowCount=0;
   // Reset loghi
   ['logo1-input','logo2-input'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   ['logo1-preview','logo2-preview'].forEach(id => { const el=document.getElementById(id); if(el){ el.src=''; el.style.display='none'; }});
   ['logo1-name','logo2-name'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent='Clicca per caricare'; });
+  // Reset excel
+  const excelInput = document.getElementById('excel-input'); if(excelInput) excelInput.value='';
+  const excelName = document.getElementById('excel-name'); if(excelName) excelName.textContent='Clicca per caricare';
+  const excelPrev = document.getElementById('excel-preview-table'); if(excelPrev) excelPrev.style.display='none';
+  window._excelRows = [];
   const dlArea=document.getElementById('turno-download'); if(dlArea) dlArea.style.display='none';
 
   try { history.replaceState(null,"",location.pathname); } catch(e){}
@@ -1655,10 +1645,6 @@ let segnRowCount = 0;
 function initAlertRows() {
   const alertContainer = document.getElementById('alert-rows');
   if (alertContainer && alertContainer.children.length === 0) addAlertRow();
-  const critContainer  = document.getElementById('criticita-rows');
-  if (critContainer  && critContainer.children.length  === 0) addCritRow();
-  const segnContainer  = document.getElementById('segnal-rows');
-  if (segnContainer  && segnContainer.children.length  === 0) addSegnRow();
 }
 
 function addCritRow() {
@@ -1703,15 +1689,16 @@ function addAlertRow() {
       <option>Critica</option><option>Alta</option><option>Media</option><option>Bassa</option>
     </select>
     <input type="text" placeholder="Timestamp" id="ar-ts-${idx}">
+    <select id="ar-stato-${idx}">
+      <option value="">Stato</option>
+      <option>Preso in carico</option>
+      <option>Risolto</option>
+      <option>In monitoraggio</option>
+      <option>Escalato</option>
+      <option>Nessuna azione necessaria</option>
+    </select>
     <div style="display:flex;gap:4px;align-items:center;">
-      <select id="ar-stato-${idx}" style="flex:1;">
-        <option value="">Stato</option>
-        <option>Preso in carico</option>
-        <option>Risolto</option>
-        <option>In monitoraggio</option>
-        <option>Escalato</option>
-        <option>Nessuna azione necessaria</option>
-      </select>
+      <input type="text" placeholder="Azione eseguita" id="ar-az-${idx}" style="flex:1;">
       <button class="remove-row-btn" onclick="removeAlertRow('alert-row-${idx}')">✕</button>
     </div>
   `;
@@ -1721,6 +1708,55 @@ function addAlertRow() {
 function removeAlertRow(id) {
   const el = document.getElementById(id);
   if (el) el.remove();
+}
+
+function previewExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('excel-name').textContent = file.name;
+
+  // Carica SheetJS per leggere l'xlsx
+  if (!window.XLSX) {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = () => _parseExcel(file);
+    document.head.appendChild(s);
+  } else {
+    _parseExcel(file);
+  }
+}
+
+function _parseExcel(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = window.XLSX.read(e.target.result, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    // Colonne da escludere
+    const EXCLUDE = ['Ack','Actions','Tags'];
+    const headers = raw[0] || [];
+    const keepIdx = headers.map((h,i) => EXCLUDE.includes(h) ? -1 : i).filter(i => i >= 0);
+    const keepHeaders = keepIdx.map(i => headers[i]);
+
+    const rows = raw.slice(1).map(row => keepIdx.map(i => row[i]||''));
+
+    // Salva per generaWordTurno
+    window._excelRows = [keepHeaders, ...rows];
+
+    // Anteprima HTML
+    let html = `<table style="width:100%;border-collapse:collapse;font-size:11px;">`;
+    html += '<tr>' + keepHeaders.map(h => `<th style="background:var(--bg-card);border:1px solid var(--border);padding:4px 8px;color:var(--teal);font-weight:600;">${h}</th>`).join('') + '</tr>';
+    rows.slice(0,5).forEach((row,i) => {
+      html += '<tr>' + row.map(c => `<td style="border:1px solid var(--border);padding:4px 8px;background:${i%2===0?'var(--bg-input)':'var(--bg-card)'};">${String(c).substring(0,40)}</td>`).join('') + '</tr>';
+    });
+    if (rows.length > 5) html += `<tr><td colspan="${keepHeaders.length}" style="padding:4px 8px;color:var(--text-muted);font-size:10px;">... e altre ${rows.length-5} righe</td></tr>`;
+    html += '</table>';
+    const prev = document.getElementById('excel-preview-content');
+    prev.innerHTML = html;
+    document.getElementById('excel-preview-table').style.display = 'block';
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function previewLogo(input, previewId, nameId) {
@@ -1755,7 +1791,6 @@ function fmtDataIT(d) {
 async function generaWordTurno() {
   // Raccogli dati
   const dataVal    = document.getElementById('t-data').value;
-  const turnoVal   = document.getElementById('t-turno').value;
   const clienteVal = document.getElementById('t-cliente').value.trim() || 'Cliente';
 
   // Loghi
@@ -1772,7 +1807,8 @@ async function generaWordTurno() {
     const sev   = (document.getElementById('ar-sev-'+idx)||{}).value||'';
     const ts    = (document.getElementById('ar-ts-'+idx)||{}).value||'';
     const stato = (document.getElementById('ar-stato-'+idx)||{}).value||'';
-    alertRows.push({ host, prob, sev, ts, stato });
+    const az    = (document.getElementById('ar-az-'+idx)||{}).value||'';
+    alertRows.push({ host, prob, sev, ts, stato, az });
   });
 
   // Criticità — raccogli tutte le righe dinamiche
@@ -1889,7 +1925,7 @@ function _buildDocxNow(d) {
     spacing: { before: 80, after: 60 },
     border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: TEAL, space: 4 } },
     children: [
-      new TextRun({ text: `Report Turno ${d.turnoVal.charAt(0).toUpperCase()+d.turnoVal.slice(1)}`, bold: true, size: 32, font: "Arial", color: NAVY }),
+      new TextRun({ text: `Report Turno`, bold: true, size: 32, font: "Arial", color: NAVY }),
       new TextRun({ text: `   ${d.clienteVal}  —  ${fmtDataIT_js(d.dataVal)}`, size: 22, font: "Arial", color: "5a6a7e" })
     ]
   }));
@@ -1913,20 +1949,21 @@ function _buildDocxNow(d) {
     new Paragraph({
       spacing:{before:0,after:240},
       children:[new TextRun({
-        text:`di seguito una panoramica di dettaglio relativa agli alert e alle attività gestite durante il turno ${d.turnoVal}.`,
+        text:`di seguito una panoramica di dettaglio relativa agli alert e alle attività gestite durante il turno.`,
         size:22, font:"Arial", color:NAVY
       })]
     }),
   ];
 
   // ── Tabella Alert ──────────────────────────────────────
-  const alertColW = [1500, 2000, 1000, 1500, 3360];
+  const alertColW = [1200, 1800, 900, 1300, 1500, 2660];
   const alertHeaderRow = new TableRow({ children: [
     hdrCell('Host', alertColW[0]),
     hdrCell('Problem', alertColW[1]),
     hdrCell('Severity', alertColW[2]),
     hdrCell('Timestamp', alertColW[3]),
     hdrCell('Stato', alertColW[4]),
+    hdrCell('Azione eseguita', alertColW[5]),
   ]});
 
   const alertDataRows = d.alertRows.map((r, i) => new TableRow({ children: [
@@ -1936,6 +1973,7 @@ function _buildDocxNow(d) {
       color: r.sev==='Critica'?'c0394f': r.sev==='Alta'?'e07b2a': r.sev==='Media'?'b07d10': NAVY, bold: r.sev==='Critica'||r.sev==='Alta' }),
     cell(r.ts,    { w: alertColW[3], bg: i%2===0?GRAY:WHITE, align:AlignmentType.CENTER }),
     cell(r.stato, { w: alertColW[4], bg: i%2===0?GRAY:WHITE }),
+    cell(r.az||'', { w: alertColW[5], bg: i%2===0?GRAY:WHITE }),
   ]}));
 
   const alertTable = new Table({
@@ -1944,42 +1982,49 @@ function _buildDocxNow(d) {
     rows: [alertHeaderRow, ...alertDataRows]
   });
 
-  // ── Tabella Criticità ──────────────────────────────────
-  const critColW = [W/2, W/2];
-  const critTable = new Table({
-    width: { size: W, type: WidthType.DXA },
-    columnWidths: critColW,
-    rows: [
-      new TableRow({ children: [hdrCell('Criticità riscontrate', critColW[0]), hdrCell('Azione eseguita', critColW[1])] }),
-      ...d.crits.map((r,i) => new TableRow({ children: [
-        cell(r.c, { w: critColW[0], bg: i%2===0?GRAY:WHITE }),
-        cell(r.a, { w: critColW[1], bg: i%2===0?GRAY:WHITE }),
-      ]}))
-    ]
-  });
+  // ── Tabella Zabbix Export ─────────────────────────────
+  let zabbixTableEl = null;
+  if (d.excelRows && d.excelRows.length > 1) {
+    const headers = d.excelRows[0];
+    const rows = d.excelRows.slice(1);
+    const colCount = headers.length;
+    const colW = Math.floor(W / colCount);
+    const colWidths = headers.map((_,i) => i === colCount-1 ? W - colW*(colCount-1) : colW);
 
-  // ── Tabella Segnalazioni ───────────────────────────────
-  const segnColW = [W*2/3|0, W - (W*2/3|0)];
-  const segnTable = new Table({
-    width: { size: W, type: WidthType.DXA },
-    columnWidths: segnColW,
-    rows: [
-      new TableRow({ children: [hdrCell('Segnalazioni per il turno successivo', segnColW[0]), hdrCell('Priorità', segnColW[1])] }),
-      ...d.segns.map((r,i) => {
-        const priColor = r.p==='Alta'?'c0394f': r.p==='Media'?'e07b2a': r.p==='Bassa'?'1a7a45': NAVY;
-        return new TableRow({ children: [
-          cell(r.s, { w: segnColW[0], bg: i%2===0?GRAY:WHITE }),
-          cell(r.p, { w: segnColW[1], bg: i%2===0?GRAY:WHITE, align:AlignmentType.CENTER, color:priColor, bold: !!r.p }),
-        ]});
-      })
-    ]
-  });
+    // Converti timestamp numerico in data leggibile
+    function excelDateToStr(val) {
+      if (!val || val === '') return '';
+      const num = parseFloat(val);
+      if (isNaN(num)) return String(val);
+      if (num > 40000 && num < 60000) {
+        const date = new Date((num - 25569) * 86400 * 1000);
+        return date.toLocaleString('it-IT');
+      }
+      return String(val);
+    }
 
-  // ── Nota finale ────────────────────────────────────────
-  const notaPara = [
-    new Paragraph({ spacing:{before:300,after:80}, children:[new TextRun({text:d.nota, size:22, font:"Arial", color:NAVY})] }),
-    new Paragraph({ spacing:{before:120,after:0}, children:[new TextRun({text:'Saluti', size:22, font:"Arial", color:NAVY})] }),
-  ];
+    const timeIdx = headers.findIndex(h => h === 'Time');
+
+    zabbixTableEl = new Table({
+      width: { size: W, type: WidthType.DXA },
+      columnWidths: colWidths,
+      rows: [
+        new TableRow({ children: headers.map((h,i) => hdrCell(h, colWidths[i])) }),
+        ...rows.map((row, ri) => new TableRow({ children: row.map((val, ci) => {
+          const displayVal = ci === timeIdx ? excelDateToStr(val) : String(val||'');
+          const sevColor = displayVal==='High'?'c0394f': displayVal==='Average'?'e07b2a': displayVal==='Warning'?'b07d10': NAVY;
+          const isSev = headers[ci]==='Severity';
+          return cell(displayVal, {
+            w: colWidths[ci],
+            bg: ri%2===0?GRAY:WHITE,
+            color: isSev ? sevColor : NAVY,
+            bold: isSev && (displayVal==='High'),
+            size: 16
+          });
+        })}))
+      ]
+    });
+  }
 
   // ── Documento ──────────────────────────────────────────
   const doc = new Document({
@@ -1994,11 +2039,10 @@ function _buildDocxNow(d) {
         ...headerChildren,
         ...intro,
         alertTable,
-        new Paragraph({ spacing:{before:240,after:0}, children:[new TextRun('')] }),
-        critTable,
-        new Paragraph({ spacing:{before:240,after:0}, children:[new TextRun('')] }),
-        segnTable,
-        ...notaPara,
+        ...(zabbixTableEl ? [
+          new Paragraph({ spacing:{before:300,after:80}, children:[new TextRun({text:'Zabbix — Problems Export', bold:true, size:22, font:"Arial", color:TEAL})] }),
+          zabbixTableEl,
+        ] : []),
       ]
     }]
   });
@@ -2009,7 +2053,7 @@ function _buildDocxNow(d) {
     btn.onclick = () => {
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Report_Turno_${d.turnoVal}_${d.dataVal||'data'}.docx`;
+      a.download = `Report_Turno_${d.dataVal||new Date().toISOString().substring(0,10)}.docx`;
       a.click();
     };
     document.getElementById('turno-download').style.display = 'block';
