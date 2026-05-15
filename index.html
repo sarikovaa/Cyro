@@ -798,20 +798,38 @@
         <div class="upload-label">Carica il file .xlsx esportato da Zabbix</div>
         <div class="upload-name" id="excel-name">Clicca per caricare</div>
       </div>
-      <!-- FILTRO ORARIO -->
+      <!-- TIPO TURNO -->
       <div style="margin-top:16px;">
-        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">⏱ Filtra log per fascia oraria <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(lascia vuoto per non filtrare)</span></div>
-        <div class="g2">
-          <div class="fl">
-            <label>Dalle ore</label>
-            <input type="time" id="zabbix-time-from" placeholder="es. 17:00">
+        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">📅 Tipo turno</div>
+        <div style="display:flex;gap:12px;">
+          <div id="turno-feriale" onclick="setTipoTurno('feriale')"
+            style="flex:1;border:2px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer;background:var(--bg-input);transition:all var(--transition);text-align:center;user-select:none;">
+            <div style="font-size:20px;margin-bottom:6px;">💼</div>
+            <div class="turno-label" style="font-size:13px;font-weight:700;color:var(--text);">Feriale</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">17:00 → 08:00</div>
           </div>
-          <div class="fl">
-            <label>Alle ore</label>
-            <input type="time" id="zabbix-time-to" placeholder="es. 09:00">
+          <div id="turno-weekend" onclick="setTipoTurno('weekend')"
+            style="flex:1;border:2px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer;background:var(--bg-input);transition:all var(--transition);text-align:center;user-select:none;">
+            <div style="font-size:20px;margin-bottom:6px;">🏖️</div>
+            <div class="turno-label" style="font-size:13px;font-weight:700;color:var(--text);">Fine settimana</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">08:00 → 08:00 (+24h)</div>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:-6px;padding-left:2px;">Se "Alle" è precedente a "Dalle", il filtro considera la fascia a cavallo della mezzanotte (es. 17:00 → 09:00 del giorno dopo).</div>
+        <input type="hidden" id="tipo-turno-val" value="">
+        <!-- OVERRIDE MANUALE -->
+        <div style="margin-top:14px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;">Override orario manuale <span style="font-weight:400;">(opzionale — sovrascrive il tipo turno)</span></div>
+          <div class="g2">
+            <div class="fl">
+              <label>Dalle ore</label>
+              <input type="time" id="zabbix-time-from">
+            </div>
+            <div class="fl">
+              <label>Alle ore</label>
+              <input type="time" id="zabbix-time-to">
+            </div>
+          </div>
+        </div>
       </div>
 
       <div id="excel-preview-table" style="margin-top:12px;overflow-x:auto;display:none;">
@@ -1213,6 +1231,14 @@ function resetForm() {
 
   // Reset turno fields
   ['t-data','t-cliente'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  // Reset tipo turno e override manuale
+  const tt = document.getElementById('tipo-turno-val'); if(tt) tt.value='';
+  ['zabbix-time-from','zabbix-time-to'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['turno-feriale','turno-weekend'].forEach(id => {
+    const el=document.getElementById(id); if(!el) return;
+    el.style.borderColor='var(--border)'; el.style.background='var(--bg-input)';
+    const lbl=el.querySelector('.turno-label'); if(lbl) lbl.style.color='var(--text)';
+  });
   // Svuota righe alert
   const alertContainer = document.getElementById('alert-rows');
   if(alertContainer) alertContainer.innerHTML='';
@@ -1257,6 +1283,11 @@ function saveToURL() {
       if(authState.dmarc) p.set("auth-dmarc", authState.dmarc);
     }
     if (currentMode === "alert") p.set("lang", currentLang);
+    if (currentMode === "turno") {
+      ['t-data','t-cliente'].forEach(id => { const el=document.getElementById(id); if(el&&el.value) p.set(id,el.value); });
+      const tt = document.getElementById('tipo-turno-val'); if(tt&&tt.value) p.set('tipo-turno',tt.value);
+      ['zabbix-time-from','zabbix-time-to'].forEach(id => { const el=document.getElementById(id); if(el&&el.value) p.set(id,el.value); });
+    }
     history.replaceState(null,"","?"+p.toString());
   } catch(e){}
 }
@@ -1281,6 +1312,11 @@ function loadFromURL() {
       ["spf","dkim","dmarc"].forEach(f => { if(p.has("auth-"+f)) setAuth(f, p.get("auth-"+f)); });
     }
     if (mode === "alert" && p.has("lang")) setLang(p.get("lang"));
+    if (mode === "turno") {
+      ['t-data','t-cliente'].forEach(id => { const el=document.getElementById(id); if(el&&p.has(id)) el.value=p.get(id); });
+      if(p.has('tipo-turno')) setTipoTurno(p.get('tipo-turno'));
+      ['zabbix-time-from','zabbix-time-to'].forEach(id => { const el=document.getElementById(id); if(el&&p.has(id)) el.value=p.get(id); });
+    }
   } catch(e){}
 }
 
@@ -1658,6 +1694,29 @@ let alertRowCount = 0;
 let critRowCount = 0;
 let segnRowCount = 0;
 
+function setTipoTurno(tipo) {
+  document.getElementById('tipo-turno-val').value = tipo;
+  const teal = getComputedStyle(document.documentElement).getPropertyValue('--teal').trim() || '#0e9e8e';
+  const feriale = document.getElementById('turno-feriale');
+  const weekend = document.getElementById('turno-weekend');
+  if (tipo === 'feriale') {
+    feriale.style.borderColor = 'var(--teal)';
+    feriale.style.background  = 'rgba(14,158,142,0.1)';
+    feriale.querySelector('.turno-label').style.color = 'var(--teal)';
+    weekend.style.borderColor = 'var(--border)';
+    weekend.style.background  = 'var(--bg-input)';
+    weekend.querySelector('.turno-label').style.color = 'var(--text)';
+  } else {
+    weekend.style.borderColor = 'var(--teal)';
+    weekend.style.background  = 'rgba(14,158,142,0.1)';
+    weekend.querySelector('.turno-label').style.color = 'var(--teal)';
+    feriale.style.borderColor = 'var(--border)';
+    feriale.style.background  = 'var(--bg-input)';
+    feriale.querySelector('.turno-label').style.color = 'var(--text)';
+  }
+  try { saveToURL(); } catch(e) {}
+}
+
 function initAlertRows() {
   const alertContainer = document.getElementById('alert-rows');
   if (alertContainer && alertContainer.children.length === 0) addAlertRow();
@@ -1999,21 +2058,38 @@ function _buildDocxNow(d) {
     const headers = d.excelRows[0];
     let rows = d.excelRows.slice(1);
 
-    // Filtra righe per fascia oraria impostata dall'utente
-    const timeFromInput = document.getElementById('zabbix-time-from').value; // "HH:MM"
-    const timeToInput   = document.getElementById('zabbix-time-to').value;   // "HH:MM"
+    // ── Filtraggio orario Zabbix ──────────────────────────
+    // Usa il tipo turno selezionato dall'utente:
+    //   feriale  → 17:00 – 08:00 (a cavallo mezzanotte)
+    //   weekend  → 08:00 – 08:00 (+24h, overnight)
+    // Se nessun tipo è selezionato, non filtra.
 
-    if (timeFromInput || timeToInput) {
+    function toMinutes(hhmm) {
+      const [h, m] = hhmm.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    const tipoTurno    = document.getElementById('tipo-turno-val').value;
+    const manualFrom   = document.getElementById('zabbix-time-from').value;
+    const manualTo     = document.getElementById('zabbix-time-to').value;
+
+    let fromMin, toMin;
+    if (manualFrom || manualTo) {
+      // Override manuale ha la precedenza
+      fromMin = manualFrom ? toMinutes(manualFrom) : 0;
+      toMin   = manualTo   ? toMinutes(manualTo)   : 24 * 60;
+    } else if (tipoTurno === 'feriale') {
+      fromMin = toMinutes('17:00');
+      toMin   = toMinutes('08:00');
+    } else if (tipoTurno === 'weekend') {
+      fromMin = toMinutes('08:00');
+      toMin   = toMinutes('08:00'); // overnight=true → copre le 24h
+    }
+
+    if (fromMin !== undefined) {
+      const overnight = toMin <= fromMin; // fascia a cavallo della mezzanotte
       const timeIdx2 = headers.findIndex(h => h === 'Time');
       if (timeIdx2 >= 0) {
-        function toMinutes(hhmm) {
-          const [h, m] = hhmm.split(':').map(Number);
-          return h * 60 + m;
-        }
-        const fromMin  = timeFromInput ? toMinutes(timeFromInput) : 0;
-        const toMin    = timeToInput   ? toMinutes(timeToInput)   : 24 * 60;
-        const overnight = toMin <= fromMin; // fascia a cavallo mezzanotte (es. 17:00→09:00)
-
         rows = rows.filter(row => {
           const timeVal = row[timeIdx2];
           if (!timeVal || timeVal === '') return false;
@@ -2032,7 +2108,6 @@ function _buildDocxNow(d) {
           const eventMin = eventDate.getHours() * 60 + eventDate.getMinutes();
 
           if (overnight) {
-            // es. 17:00–09:00: include eventi >= 17:00 oppure <= 09:00
             return eventMin >= fromMin || eventMin <= toMin;
           } else {
             return eventMin >= fromMin && eventMin <= toMin;
