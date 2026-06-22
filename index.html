@@ -799,6 +799,39 @@
         <div class="upload-label">Carica il file .xlsx esportato da Zabbix</div>
         <div class="upload-name" id="excel-name">Clicca per caricare</div>
       </div>
+      <!-- TIPO TURNO -->
+      <div style="margin-top:16px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">📅 Tipo turno</div>
+        <div style="display:flex;gap:12px;">
+          <div id="turno-feriale" onclick="setTipoTurno('feriale')"
+            style="flex:1;border:2px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer;background:var(--bg-input);transition:all var(--transition);text-align:center;user-select:none;">
+            <div style="font-size:20px;margin-bottom:6px;">💼</div>
+            <div class="turno-label" style="font-size:13px;font-weight:700;color:var(--text);">Feriale</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">17:00 → 08:00</div>
+          </div>
+          <div id="turno-weekend" onclick="setTipoTurno('weekend')"
+            style="flex:1;border:2px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer;background:var(--bg-input);transition:all var(--transition);text-align:center;user-select:none;">
+            <div style="font-size:20px;margin-bottom:6px;">🏖️</div>
+            <div class="turno-label" style="font-size:13px;font-weight:700;color:var(--text);">Fine settimana</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">08:00 → 08:00 (+24h)</div>
+          </div>
+        </div>
+        <input type="hidden" id="tipo-turno-val" value="">
+        <!-- OVERRIDE MANUALE -->
+        <div style="margin-top:14px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;">Override orario manuale <span style="font-weight:400;">(opzionale — sovrascrive il tipo turno)</span></div>
+          <div class="g2">
+            <div class="fl">
+              <label>Dalle ore</label>
+              <input type="time" id="zabbix-time-from">
+            </div>
+            <div class="fl">
+              <label>Alle ore</label>
+              <input type="time" id="zabbix-time-to">
+            </div>
+          </div>
+        </div>
+      </div>
       <div id="excel-preview-table" style="margin-top:12px;overflow-x:auto;display:none;">
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Anteprima (colonne Ack, Actions, Tags escluse automaticamente):</div>
         <div id="excel-preview-content"></div>
