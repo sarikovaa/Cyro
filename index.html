@@ -304,6 +304,30 @@
     .teal-mode .btn-primary { background:linear-gradient(135deg,#0e9e8e,#0a7a6d); }
     .teal-mode select:focus, .teal-mode input:focus, .teal-mode textarea:focus { border-color:var(--teal); box-shadow:0 0 0 3px rgba(14,158,142,0.15); }
 
+    /* ── COMMESSE MODE (rosa/magenta) ── */
+    --rose: #d6457f;
+    .mode-card.comm-card:hover   { border-color:var(--rose); box-shadow:0 8px 32px rgba(214,69,127,0.15); }
+    .mode-card.comm-card::before { background:radial-gradient(ellipse at 50% 0%, rgba(214,69,127,0.12) 0%, transparent 70%); }
+    .mode-card.comm-card:hover::before { opacity:1; }
+    .comm-card .mode-label  { background:rgba(214,69,127,0.15); color:var(--rose); }
+    .comm-card:hover .mode-chip { border-color:rgba(214,69,127,0.3); color:rgba(214,69,127,0.9); }
+    .badge-comm { background:rgba(214,69,127,0.12); color:var(--rose); border:1px solid rgba(214,69,127,0.25); }
+    .rose-mode .sec  { color:var(--rose); }
+    .rose-mode .card { border-color:rgba(214,69,127,0.12); }
+    .rose-mode .btn-primary { background:linear-gradient(135deg,#d6457f,#a82e5e); }
+    .rose-mode select:focus, .rose-mode input:focus, .rose-mode textarea:focus { border-color:var(--rose); box-shadow:0 0 0 3px rgba(214,69,127,0.15); }
+    .comm-row { display:grid; grid-template-columns:1.6fr 1fr auto; gap:10px; align-items:center; margin-bottom:8px; }
+    .add-comm-btn { font-size:12px; padding:8px 14px; border:1px dashed var(--rose); border-radius:var(--radius-sm); background:rgba(214,69,127,0.05); color:var(--rose); cursor:pointer; width:100%; margin-top:6px; transition:all var(--transition); }
+    .add-comm-btn:hover { background:rgba(214,69,127,0.1); }
+    /* tabella risultati commesse */
+    .comm-result-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+    .comm-result-table th { background:var(--rose); color:#fff; padding:10px 12px; text-align:left; font-weight:600; font-size:12px; }
+    .comm-result-table td { border:1px solid var(--border); padding:9px 12px; }
+    .comm-result-table tr:nth-child(even) td { background:var(--bg-input); }
+    .comm-person-name { font-weight:700; color:var(--rose); }
+    .comm-ext-badge { font-size:9px; font-weight:700; padding:2px 7px; border-radius:99px; background:rgba(249,226,175,0.15); color:var(--warning); border:1px solid rgba(249,226,175,0.3); margin-left:6px; }
+    .comm-tot-row td { background:rgba(214,69,127,0.08)!important; font-weight:700; border-top:2px solid var(--rose); }
+
     /* ── LOGO UPLOAD ── */
     .logo-upload-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:4px; }
     .logo-upload-box {
@@ -404,6 +428,17 @@
           <span class="mode-chip">File .docx</span>
           <span class="mode-chip">Loghi aziendali</span>
           <span class="mode-chip">Tabella alert</span>
+        </div>
+      </div>
+      <div class="mode-card comm-card" onclick="setMode('comm')">
+        <span class="mode-icon">⏱️</span>
+        <div class="mode-label">Ore Commesse</div>
+        <div class="mode-name">Ore Commesse</div>
+        <div class="mode-desc">Distribuisci le ore mensili delle commesse equamente tra le persone</div>
+        <div class="mode-chips">
+          <span class="mode-chip">Clienti & ore</span>
+          <span class="mode-chip">Interni / Esterni</span>
+          <span class="mode-chip">Griglia automatica</span>
         </div>
       </div>
     </div>
@@ -845,6 +880,55 @@
     </div>
   </div>
 
+
+  <!-- ══════════════════════════════════
+       SEZIONE ORE COMMESSE (ROSA)
+  ══════════════════════════════════ -->
+  <div id="section-comm" style="display:none; animation:fadeIn .35s ease;">
+    <div class="back-btn" onclick="goHome()">← Torna alla selezione</div>
+    <div class="section-badge badge-comm">⏱️ &nbsp;Ore Commesse</div>
+
+    <!-- COMMESSE -->
+    <div class="card">
+      <div class="sec">Commesse e ore mensili</div>
+      <div style="display:grid;grid-template-columns:1.6fr 1fr auto;gap:10px;margin-bottom:8px;padding:0 2px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Commessa (cliente)</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Ore totali mensili</div>
+        <div></div>
+      </div>
+      <div id="comm-rows"></div>
+      <button class="add-comm-btn" onclick="addCommRow()">+ Aggiungi commessa</button>
+    </div>
+
+    <!-- PERSONE -->
+    <div class="card">
+      <div class="sec">Persone che hanno lavorato</div>
+      <div class="fl">
+        <label>Quante persone?</label>
+        <select id="comm-num-persone" onchange="renderPersone()">
+          <option value="">— seleziona —</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option><option>8</option>
+          <option>9</option><option>10</option>
+        </select>
+      </div>
+      <div id="persone-list" style="margin-top:12px;"></div>
+    </div>
+
+    <button class="btn-primary" onclick="generaCommesse()">📊 Genera distribuzione</button>
+
+    <div id="comm-output" style="display:none;margin-top:20px;">
+      <div class="card">
+        <div class="sec" style="margin-top:0;">Distribuzione ore</div>
+        <div id="comm-result"></div>
+        <div class="copy-row" style="margin-top:16px;">
+          <button class="btn-secondary" onclick="copiaCommesse()">📋 Copia tabella</button>
+          <span id="msg-copia-comm" class="msg-copia">✓ Copiato!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /wrapper -->
 
 <!-- BOTTOM BAR -->
@@ -879,14 +963,16 @@ function setMode(mode) {
   document.getElementById('section-ip').style.display     = mode === 'ip'    ? 'block' : 'none';
   document.getElementById('section-hash').style.display   = mode === 'hash'  ? 'block' : 'none';
   document.getElementById('section-turno').style.display  = mode === 'turno' ? 'block' : 'none';
+  document.getElementById('section-comm').style.display   = mode === 'comm'  ? 'block' : 'none';
 
   const body = document.body;
-  body.classList.remove('blue-mode','green-mode','orange-mode','purple-mode','teal-mode');
+  body.classList.remove('blue-mode','green-mode','orange-mode','purple-mode','teal-mode','rose-mode');
   if (mode === 'alert')      body.classList.add('blue-mode');
   else if (mode === 'phish') body.classList.add('green-mode');
   else if (mode === 'ip')   { body.classList.add('orange-mode'); loadApiKeys(); }
   else if (mode === 'hash') { body.classList.add('purple-mode'); loadApiKeys(); }
   else if (mode === 'turno'){ body.classList.add('teal-mode'); initAlertRows(); }
+  else if (mode === 'comm') { body.classList.add('rose-mode'); initCommRows(); }
 
   const logo = document.getElementById('main-logo');
   if (mode === 'alert')       { logo.style.background='linear-gradient(135deg,#5b6acf,#7c3aed)'; logo.textContent='🛡️'; }
@@ -894,6 +980,7 @@ function setMode(mode) {
   else if (mode === 'ip')     { logo.style.background='linear-gradient(135deg,#e07b2a,#c45a10)'; logo.textContent='🔍'; }
   else if (mode === 'hash')   { logo.style.background='linear-gradient(135deg,#9b59d0,#6c3aad)'; logo.textContent='#️⃣'; }
   else if (mode === 'turno')  { logo.style.background='linear-gradient(135deg,#0e9e8e,#0a7a6d)'; logo.textContent='📋'; }
+  else if (mode === 'comm')   { logo.style.background='linear-gradient(135deg,#d6457f,#a82e5e)'; logo.textContent='⏱️'; }
   try { saveToURL(); } catch(e){}
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -906,7 +993,8 @@ function goHome() {
   document.getElementById('section-ip').style.display     = 'none';
   document.getElementById('section-hash').style.display   = 'none';
   document.getElementById('section-turno').style.display  = 'none';
-  document.body.classList.remove('blue-mode','green-mode','orange-mode','purple-mode','teal-mode');
+  document.getElementById('section-comm').style.display   = 'none';
+  document.body.classList.remove('blue-mode','green-mode','orange-mode','purple-mode','teal-mode','rose-mode');
   const logo = document.getElementById('main-logo');
   logo.style.background = 'linear-gradient(135deg,#5b6acf,#7c3aed)';
   logo.textContent = '🛡️';
@@ -2082,6 +2170,209 @@ function _buildDocxNow(d) {
   });
 }
 
+
+/* ════════════════════════════════════════
+   ORE COMMESSE
+════════════════════════════════════════ */
+let commRowCount = 0;
+
+function initCommRows() {
+  const c = document.getElementById('comm-rows');
+  if (c && c.children.length === 0) { addCommRow(); addCommRow(); }
+}
+
+function addCommRow() {
+  const container = document.getElementById('comm-rows');
+  const idx = commRowCount++;
+  const div = document.createElement('div');
+  div.className = 'comm-row';
+  div.id = 'comm-row-' + idx;
+  div.innerHTML = `
+    <input type="text" placeholder="Nome commessa / cliente" id="comm-nome-${idx}">
+    <input type="number" min="0" step="1" placeholder="es. 160" id="comm-ore-${idx}">
+    <button class="remove-row-btn" onclick="document.getElementById('comm-row-${idx}').remove()">✕</button>
+  `;
+  container.appendChild(div);
+}
+
+function renderPersone() {
+  const n = parseInt(document.getElementById('comm-num-persone').value) || 0;
+  const list = document.getElementById('persone-list');
+  list.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:10px;align-items:center;margin-bottom:8px;';
+    div.innerHTML = `
+      <input type="text" placeholder="Nome persona ${i+1}" id="persona-nome-${i}" style="flex:1;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);white-space:nowrap;cursor:pointer;user-select:none;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);">
+        <input type="checkbox" id="persona-ext-${i}" style="width:auto;cursor:pointer;"> Esterno
+      </label>
+    `;
+    list.appendChild(div);
+  }
+}
+
+let _commLastResult = "";
+
+function generaCommesse() {
+  // Raccogli commesse
+  const commesse = [];
+  document.querySelectorAll('[id^="comm-row-"]').forEach(row => {
+    const idx = row.id.replace('comm-row-','');
+    const nome = (document.getElementById('comm-nome-'+idx)||{}).value || '';
+    const ore  = parseInt((document.getElementById('comm-ore-'+idx)||{}).value) || 0;
+    if (nome.trim() && ore > 0) commesse.push({ nome: nome.trim(), ore });
+  });
+
+  if (commesse.length === 0) {
+    document.getElementById('comm-result').innerHTML = '<div class="error-msg">⚠️ Inserisci almeno una commessa con ore valide.</div>';
+    document.getElementById('comm-output').style.display = 'block';
+    return;
+  }
+
+  // Raccogli persone
+  const n = parseInt(document.getElementById('comm-num-persone').value) || 0;
+  if (n === 0) {
+    document.getElementById('comm-result').innerHTML = '<div class="error-msg">⚠️ Seleziona quante persone hanno lavorato.</div>';
+    document.getElementById('comm-output').style.display = 'block';
+    return;
+  }
+
+  const persone = [];
+  for (let i = 0; i < n; i++) {
+    const nome = (document.getElementById('persona-nome-'+i)||{}).value || ('Persona '+(i+1));
+    const ext  = (document.getElementById('persona-ext-'+i)||{}).checked || false;
+    persone.push({
+      nome: nome.trim() || ('Persona '+(i+1)),
+      esterno: ext,
+      maxCommesse: ext ? 2 : 3,
+      assegnazioni: []  // { commessa, ore }
+    });
+  }
+
+  // ── Distribuzione con ore INTERE ─────────────────────
+  // PRIORITÀ: piazzare TUTTE le commesse (nessuna lasciata fuori).
+  // Capacità totale = somma dei posti-commessa di tutte le persone
+  //   (interni 3, esterni 2). Ogni commessa occupa "k" posti = su quante
+  //   persone viene spalmata. Per garantire che tutte le commesse entrino,
+  //   calcolo un k massimo sostenibile dato il numero di commesse.
+  //
+  //   postiTotali = Σ maxCommesse
+  //   Se distribuissi ogni commessa su tante persone, saturerei i posti.
+  //   Quindi: k_base = floor(postiTotali / numCommesse), almeno 1.
+  //   Così ogni commessa entra e, se avanzano posti, le più grandi
+  //   vengono spalmate su 1 persona in più.
+
+  const numCommesse = commesse.length;
+  const postiTotali = persone.reduce((s,p) => s + p.maxCommesse, 0);
+
+  // posti base per commessa (almeno 1, non più del num persone)
+  let kBase = Math.max(1, Math.floor(postiTotali / numCommesse));
+  if (kBase > persone.length) kBase = persone.length;
+
+  // posti extra da distribuire alle commesse più grandi
+  let postiExtra = postiTotali - kBase * numCommesse;
+
+  // Ordina commesse dalla più grande alla più piccola
+  const commesseOrd = [...commesse].sort((a,b) => b.ore - a.ore);
+
+  commesseOrd.forEach(comm => {
+    // k = quante persone coinvolgere su questa commessa
+    let k = kBase;
+    if (postiExtra > 0) { k += 1; postiExtra--; }
+
+    // Persone che possono ancora ricevere commesse, ordinate per chi ne ha meno
+    let idonee = persone.filter(p => p.assegnazioni.length < p.maxCommesse);
+    if (idonee.length === 0) return;
+    idonee.sort((a,b) => a.assegnazioni.length - b.assegnazioni.length);
+
+    if (k > idonee.length) k = idonee.length;
+    if (k < 1) k = 1;
+    const scelte = idonee.slice(0, k);
+
+    // Dividi le ore in interi: base + resto (i primi prendono +1)
+    const base = Math.floor(comm.ore / k);
+    let resto = comm.ore - base * k;
+    scelte.forEach(p => {
+      let ore = base;
+      if (resto > 0) { ore += 1; resto--; }
+      if (ore > 0) p.assegnazioni.push({ commessa: comm.nome, ore });
+    });
+  });
+
+  // ── Recupero commesse non assegnate ──────────────────
+  // Se qualche commessa è rimasta fuori (capacità esaurita male),
+  // provo a piazzarla su chi ha ancora posto.
+  commesse.forEach(comm => {
+    const giaAssegnata = persone.some(p => p.assegnazioni.some(a => a.commessa === comm.nome));
+    if (giaAssegnata) return;
+    let idonee = persone.filter(p => p.assegnazioni.length < p.maxCommesse);
+    if (idonee.length === 0) return;
+    idonee.sort((a,b) => a.assegnazioni.length - b.assegnazioni.length);
+    const k = Math.min(idonee.length, 2); // spalma su max 2 per recupero
+    const scelte = idonee.slice(0, k);
+    const base = Math.floor(comm.ore / k);
+    let resto = comm.ore - base * k;
+    scelte.forEach(p => {
+      let ore = base;
+      if (resto > 0) { ore += 1; resto--; }
+      if (ore > 0) p.assegnazioni.push({ commessa: comm.nome, ore });
+    });
+  });
+
+  // ── Costruisci tabella ───────────────────────────────
+  let html = '<table class="comm-result-table"><tr><th>Persona</th><th>Commessa</th><th>Ore</th></tr>';
+  let totaleGenerale = 0;
+  const totaliPerCommessa = {};
+
+  persone.forEach(p => {
+    const span = Math.max(1, p.assegnazioni.length);
+    if (p.assegnazioni.length === 0) {
+      html += `<tr><td class="comm-person-name">${escHtml(p.nome)}${p.esterno?'<span class="comm-ext-badge">ESTERNO</span>':''}</td><td style="color:var(--text-muted);font-style:italic;">nessuna commessa</td><td>0 h</td></tr>`;
+    } else {
+      p.assegnazioni.forEach((a, i) => {
+        totaleGenerale += a.ore;
+        totaliPerCommessa[a.commessa] = (totaliPerCommessa[a.commessa]||0) + a.ore;
+        html += '<tr>';
+        if (i === 0) {
+          html += `<td rowspan="${span}" class="comm-person-name" style="vertical-align:top;">${escHtml(p.nome)}${p.esterno?'<span class="comm-ext-badge">ESTERNO</span>':''}</td>`;
+        }
+        html += `<td>${escHtml(a.commessa)}</td><td>${a.ore} h</td></tr>`;
+      });
+    }
+  });
+
+  html += `<tr class="comm-tot-row"><td>TOTALE</td><td>${commesse.length} commesse</td><td>${totaleGenerale} h</td></tr>`;
+  html += '</table>';
+
+  // Riepilogo per commessa (con verifica)
+  html += '<div style="margin-top:16px;font-size:12px;color:var(--text-secondary);"><strong style="color:var(--rose);">Riepilogo per commessa:</strong><br>';
+  commesse.forEach(c => {
+    const assegnato = totaliPerCommessa[c.nome] || 0;
+    const ok = assegnato === c.ore;
+    html += `• ${escHtml(c.nome)}: ${assegnato} / ${c.ore} h ${ok?'✓':'<span style="color:var(--warning)">⚠️ ('+(c.ore-assegnato)+'h non assegnate)</span>'}<br>`;
+  });
+  html += '</div>';
+
+  document.getElementById('comm-result').innerHTML = html;
+  document.getElementById('comm-output').style.display = 'block';
+  document.getElementById('comm-output').scrollIntoView({behavior:'smooth', block:'nearest'});
+
+  // Versione testo per copia
+  let plain = 'DISTRIBUZIONE ORE COMMESSE\\n\\n';
+  persone.forEach(p => {
+    plain += `${p.nome}${p.esterno?' (ESTERNO)':''}:\\n`;
+    if (p.assegnazioni.length === 0) plain += '  - nessuna commessa\\n';
+    else p.assegnazioni.forEach(a => { plain += `  - ${a.commessa}: ${a.ore} h\\n`; });
+    plain += '\\n';
+  });
+  plain += `TOTALE: ${totaleGenerale} h`;
+  _commLastResult = plain;
+}
+
+function copiaCommesse() {
+  navigator.clipboard.writeText(_commLastResult).then(() => flash('msg-copia-comm'));
+}
 
 document.addEventListener("input",  () => { try{saveToURL();}catch(e){} });
 document.addEventListener("change", () => { try{saveToURL();}catch(e){} });
