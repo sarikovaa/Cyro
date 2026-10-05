@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <!-- ================================================
      Cyro — SOC Report Generator
@@ -2078,14 +2079,11 @@ function _buildDocxNow(d) {
     rows: [alertHeaderRow, ...alertDataRows]
   });
 
-  // ── Tabella Zabbix Export ─────────────────────────────
-  let zabbixTableEl = null;
+  // ── Tabelle Zabbix Export DIVISE PER SEVERITY ─────────
+  let zabbixBlocks = [];
   if (d.excelRows && d.excelRows.length > 1) {
     const headers = d.excelRows[0];
-    const rows = d.excelRows.slice(1);
-    const colCount = headers.length;
-    const colW = Math.floor(W / colCount);
-    const colWidths = headers.map((_,i) => i === colCount-1 ? W - colW*(colCount-1) : colW);
+    const allRows = d.excelRows.slice(1);
 
     // Converti timestamp numerico in data leggibile
     function excelDateToStr(val) {
@@ -2100,39 +2098,101 @@ function _buildDocxNow(d) {
     }
 
     const timeIdx = headers.findIndex(h => h === 'Time');
+    const sevIdx  = headers.findIndex(h => h === 'Severity');
 
-    // Aggiungi colonna "Action taken" dopo le colonne esistenti
+    // Colonne con "Action taken" in fondo
     const extHeaders = [...headers, 'Action taken'];
     const baseColW = Math.floor(W / extHeaders.length);
     const extColWidths = extHeaders.map((_,i) => i === extHeaders.length-1 ? W - baseColW*(extHeaders.length-1) : baseColW);
 
-    zabbixTableEl = new Table({
-      width: { size: W, type: WidthType.DXA },
-      columnWidths: extColWidths,
-      rows: [
-        new TableRow({ children: extHeaders.map((h,i) => hdrCell(h, extColWidths[i])) }),
-        ...rows.map((row, ri) => new TableRow({ children: [
-          ...row.map((val, ci) => {
-            const displayVal = ci === timeIdx ? excelDateToStr(val) : String(val||'');
-            const sevColor = displayVal==='High'?'c0394f': displayVal==='Average'?'e07b2a': displayVal==='Warning'?'b07d10': NAVY;
-            const isSev = headers[ci]==='Severity';
-            return cell(displayVal, {
-              w: extColWidths[ci],
+    // Ordine severity richiesto + mappatura nomi Zabbix
+    // Zabbix usa: Disaster, High, Average, Warning, Information, Not classified
+    // Richiesta utente: Critical, High, Medium, Low, Warning
+    const severityGroups = [
+      { label: 'Critical', match: ['critical','disaster'],        color: '9b1c2e' },
+      { label: 'High',     match: ['high'],                       color: 'c0394f' },
+      { label: 'Medium',   match: ['medium','average'],           color: 'e07b2a' },
+      { label: 'Low',      match: ['low','information','info'],    color: '2563a8' },
+      { label: 'Warning',  match: ['warning'],                    color: 'b07d10' },
+    ];
+
+    // Raggruppa le righe per severity
+    function rowSeverity(row) {
+      return sevIdx >= 0 ? String(row[sevIdx]||'').trim().toLowerCase() : '';
+    }
+
+    const usate = new Set();
+
+    severityGroups.forEach(grp => {
+      const groupRows = allRows.filter(row => {
+        const s = rowSeverity(row);
+        return grp.match.includes(s);
+      });
+      if (groupRows.length === 0) return;
+      groupRows.forEach(r => usate.add(r));
+
+      // Titolo gruppo severity
+      zabbixBlocks.push(new Paragraph({
+        spacing:{before:260,after:60},
+        children:[
+          new TextRun({text: grp.label, bold:true, size:22, font:"Arial", color: grp.color}),
+          new TextRun({text: `   (${groupRows.length})`, bold:false, size:18, font:"Arial", color:"8890b0"})
+        ]
+      }));
+
+      // Tabella del gruppo
+      const tbl = new Table({
+        width: { size: W, type: WidthType.DXA },
+        columnWidths: extColWidths,
+        rows: [
+          new TableRow({ children: extHeaders.map((h,i) => hdrCell(h, extColWidths[i])) }),
+          ...groupRows.map((row, ri) => new TableRow({ children: [
+            ...row.map((val, ci) => {
+              const displayVal = ci === timeIdx ? excelDateToStr(val) : String(val||'');
+              const isSev = ci === sevIdx;
+              return cell(displayVal, {
+                w: extColWidths[ci],
+                bg: ri%2===0?GRAY:WHITE,
+                color: isSev ? grp.color : NAVY,
+                bold: isSev,
+                size: 16
+              });
+            }),
+            cell('Checked - No action needed', {
+              w: extColWidths[extColWidths.length-1],
               bg: ri%2===0?GRAY:WHITE,
-              color: isSev ? sevColor : NAVY,
-              bold: isSev && (displayVal==='High'),
+              color: '1a7a45',
               size: 16
-            });
-          }),
-          cell('Checked - No action needed', {
-            w: extColWidths[extColWidths.length-1],
-            bg: ri%2===0?GRAY:WHITE,
-            color: '1a7a45',
-            size: 16
-          })
-        ]}))
-      ]
+            })
+          ]}))
+        ]
+      });
+      zabbixBlocks.push(tbl);
     });
+
+    // Severity non riconosciute → gruppo "Altro"
+    const altreRows = allRows.filter(r => !usate.has(r));
+    if (altreRows.length > 0) {
+      zabbixBlocks.push(new Paragraph({
+        spacing:{before:260,after:60},
+        children:[new TextRun({text: 'Altro', bold:true, size:22, font:"Arial", color: NAVY})]
+      }));
+      const tbl = new Table({
+        width: { size: W, type: WidthType.DXA },
+        columnWidths: extColWidths,
+        rows: [
+          new TableRow({ children: extHeaders.map((h,i) => hdrCell(h, extColWidths[i])) }),
+          ...altreRows.map((row, ri) => new TableRow({ children: [
+            ...row.map((val, ci) => {
+              const displayVal = ci === timeIdx ? excelDateToStr(val) : String(val||'');
+              return cell(displayVal, { w: extColWidths[ci], bg: ri%2===0?GRAY:WHITE, color: NAVY, size: 16 });
+            }),
+            cell('Checked - No action needed', { w: extColWidths[extColWidths.length-1], bg: ri%2===0?GRAY:WHITE, color: '1a7a45', size: 16 })
+          ]}))
+        ]
+      });
+      zabbixBlocks.push(tbl);
+    }
   }
 
   // ── Documento ──────────────────────────────────────────
@@ -2148,9 +2208,9 @@ function _buildDocxNow(d) {
         ...headerChildren,
         ...intro,
         alertTable,
-        ...(zabbixTableEl ? [
-          new Paragraph({ spacing:{before:300,after:80}, children:[new TextRun({text:'Zabbix — Problems Export', bold:true, size:22, font:"Arial", color:TEAL})] }),
-          zabbixTableEl,
+        ...(zabbixBlocks.length > 0 ? [
+          new Paragraph({ spacing:{before:300,after:40}, children:[new TextRun({text:'Zabbix — Problems Export', bold:true, size:24, font:"Arial", color:TEAL})] }),
+          ...zabbixBlocks,
         ] : []),
       ]
     }]
