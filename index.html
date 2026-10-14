@@ -1966,22 +1966,107 @@ function _parseGlpi(file) {
     const wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, 'GLPI');
     const wbout = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
 
     const nRecord = outRows.length - 1;
-    document.getElementById('glpi-info').textContent = `${nRecord} record elaborati · descrizione ripulita · colonna "Asset" aggiunta.`;
-    const btn = document.getElementById('glpi-dl-btn');
-    btn.onclick = () => {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'GLPI_' + new Date().toISOString().substring(0,10) + '.xlsx';
-      a.click();
-    };
-    document.getElementById('glpi-download').style.display = 'block';
-    document.getElementById('glpi-download').scrollIntoView({ behavior:'smooth', block:'nearest' });
+    const nCol = outHeaders.length;
+
+    // Colora l'header post-processando lo zip (SheetJS community non scrive stili)
+    _coloraHeaderXlsx(wbout, nCol, finalBlob => {
+      const url = URL.createObjectURL(finalBlob);
+      document.getElementById('glpi-info').textContent = `${nRecord} record elaborati · descrizione ripulita · colonna "Asset" aggiunta.`;
+      const btn = document.getElementById('glpi-dl-btn');
+      btn.onclick = () => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'GLPI_' + new Date().toISOString().substring(0,10) + '.xlsx';
+        a.click();
+      };
+      document.getElementById('glpi-download').style.display = 'block';
+      document.getElementById('glpi-download').scrollIntoView({ behavior:'smooth', block:'nearest' });
+    });
   };
   reader.readAsText(file, 'utf-8');
+}
+
+// Post-processa l'xlsx per colorare la riga header. SheetJS community non
+// scrive gli stili, quindi iniettiamo styles.xml e assegniamo lo stile alle
+// celle della prima riga dentro sheet1.xml, usando fflate (zip).
+function _coloraHeaderXlsx(arrbuf, nCol, cb) {
+  function doWork() {
+    try {
+      const { unzipSync, zipSync, strToU8, strFromU8 } = window.fflate;
+      const files = unzipSync(new Uint8Array(arrbuf));
+
+      // styles.xml: fill teal + testo bianco grassetto centrato
+      const stylesXml =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        '<fonts count="2">' +
+          '<font><sz val="11"/><color theme="1"/><name val="Calibri"/></font>' +
+          '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>' +
+        '</fonts>' +
+        '<fills count="3">' +
+          '<fill><patternFill patternType="none"/></fill>' +
+          '<fill><patternFill patternType="gray125"/></fill>' +
+          '<fill><patternFill patternType="solid"><fgColor rgb="FF0E9E8E"/><bgColor indexed="64"/></patternFill></fill>' +
+        '</fills>' +
+        '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="2">' +
+          '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+          '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+      files['xl/styles.xml'] = strToU8(stylesXml);
+
+      // sheet: assegna s="1" alle celle della prima riga (r="1")
+      const sheetPath = Object.keys(files).find(p => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
+      if (sheetPath) {
+        let xml = strFromU8(files[sheetPath]);
+        xml = xml.replace(/<row[^>]*r="1"[^>]*>[\s\S]*?<\/row>/, function(rowXml){
+          return rowXml.replace(/<c(\s)/g, '<c s="1"$1');
+        });
+        files[sheetPath] = strToU8(xml);
+      }
+
+      // [Content_Types].xml deve dichiarare styles.xml
+      const ctPath = '[Content_Types].xml';
+      if (files[ctPath]) {
+        let ct = strFromU8(files[ctPath]);
+        if (ct.indexOf('styles.xml') === -1) {
+          ct = ct.replace('</Types>',
+            '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+          files[ctPath] = strToU8(ct);
+        }
+      }
+
+      // workbook.xml.rels deve referenziare styles.xml
+      const relPath = 'xl/_rels/workbook.xml.rels';
+      if (files[relPath]) {
+        let rel = strFromU8(files[relPath]);
+        if (rel.indexOf('styles.xml') === -1) {
+          let maxId = 0;
+          rel.replace(/Id="rId(\d+)"/g, (m,n)=>{ maxId = Math.max(maxId, parseInt(n)); return m; });
+          rel = rel.replace('</Relationships>',
+            '<Relationship Id="rId' + (maxId+1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+          files[relPath] = strToU8(rel);
+        }
+      }
+
+      const out = zipSync(files);
+      cb(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    } catch(err) {
+      cb(new Blob([arrbuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    }
+  }
+
+  if (window.fflate) { doWork(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js';
+  s.onload = doWork;
+  s.onerror = () => cb(new Blob([arrbuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  document.head.appendChild(s);
 }
 
 function _parseExcel(file) {
