@@ -1900,8 +1900,8 @@ function _parseCsvSemicolon(text) {
     } else {
       if (c === '"') inQuotes = true;
       else if (c === ';') { row.push(field); field = ''; }
-      else if (c === '\\n') { row.push(field); rows.push(row); row = []; field = ''; }
-      else if (c === '\\r') { /* ignora */ }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (c === '\r') { /* ignora */ }
       else field += c;
     }
   }
@@ -1940,14 +1940,14 @@ function _parseGlpi(file) {
 
       // 1) Estrai la sezione Agent
       let asset = '';
-      const mAgent = desc.match(/Agent:\\s*(.+)/i);
-      if (mAgent) asset = mAgent[1].split(/\\r?\\n/)[0].trim();
+      const mAgent = desc.match(/Agent:\s*(.+)/i);
+      if (mAgent) asset = mAgent[1].split(/\r?\n/)[0].trim();
 
       // 2) Taglia tutto da "--- Full log ---" in poi
       let descClean = desc;
       const cutIdx = descClean.indexOf('--- Full log ---');
       if (cutIdx >= 0) descClean = descClean.slice(0, cutIdx);
-      descClean = descClean.replace(/\\s+$/,'').trim();
+      descClean = descClean.replace(/\s+$/,'').trim();
       cells[idxDesc] = descClean;
 
       // Inserisci Asset dopo Descrizione
