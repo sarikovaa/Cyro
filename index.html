@@ -879,6 +879,22 @@
       <div style="font-size:14px;font-weight:600;color:var(--teal);margin-bottom:8px;">✅ Documento pronto!</div>
       <button class="btn-secondary" id="turno-dl-btn">⬇️ Scarica .docx</button>
     </div>
+
+    <!-- CONVERTITORE GLPI CSV → EXCEL -->
+    <div class="card" style="margin-top:28px;">
+      <div class="sec">Convertitore GLPI → Excel <span style="font-size:10px;font-weight:400;color:var(--text-muted);margin-left:4px;">(pulisce la descrizione e aggiunge la colonna Asset)</span></div>
+      <div class="logo-upload-box" style="text-align:center;padding:24px;">
+        <input type="file" id="glpi-input" accept=".csv" onchange="convertiGlpi(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:2;">
+        <div class="upload-icon">📑</div>
+        <div class="upload-label">Carica il file .csv esportato da GLPI</div>
+        <div class="upload-name" id="glpi-name">Clicca per caricare</div>
+      </div>
+      <div id="glpi-download" style="display:none;margin-top:14px;" class="ip-result-card">
+        <div style="font-size:14px;font-weight:600;color:var(--teal);margin-bottom:4px;">✅ Excel pronto!</div>
+        <div id="glpi-info" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
+        <button class="btn-secondary" id="glpi-dl-btn">⬇️ Scarica .xlsx</button>
+      </div>
+    </div>
   </div>
 
 
@@ -1849,6 +1865,131 @@ function previewExcel(input) {
   }
 }
 
+/* ════════════════════════════════════════
+   CONVERTITORE GLPI CSV → EXCEL
+════════════════════════════════════════ */
+function convertiGlpi(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('glpi-name').textContent = file.name;
+
+  if (!window.XLSX) {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = () => _parseGlpi(file);
+    document.head.appendChild(s);
+  } else {
+    _parseGlpi(file);
+  }
+}
+
+// Parser CSV robusto (gestisce virgolette, separatore ';', newline dentro i campi)
+function _parseCsvSemicolon(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i+1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ';') { row.push(field); field = ''; }
+      else if (c === '\\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (c === '\\r') { /* ignora */ }
+      else field += c;
+    }
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function _parseGlpi(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const rows = _parseCsvSemicolon(text);
+    if (rows.length < 2) {
+      document.getElementById('glpi-info').textContent = '⚠️ Il CSV sembra vuoto o non valido.';
+      document.getElementById('glpi-download').style.display = 'block';
+      return;
+    }
+
+    // Header: rimuovi colonne vuote finali
+    let headers = rows[0].map(h => (h||'').trim()).filter(h => h !== '');
+    const idxDesc = headers.findIndex(h => h.toLowerCase() === 'descrizione');
+
+    // Nuovo header: "Asset" subito dopo Descrizione
+    const outHeaders = [...headers];
+    if (idxDesc >= 0) outHeaders.splice(idxDesc + 1, 0, 'Asset');
+    else outHeaders.push('Asset');
+
+    const outRows = [outHeaders];
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (row.every(c => (c||'').trim() === '')) continue;
+
+      const cells = headers.map((_, i) => row[i] !== undefined ? row[i] : '');
+      const desc = cells[idxDesc] || '';
+
+      // 1) Estrai la sezione Agent
+      let asset = '';
+      const mAgent = desc.match(/Agent:\\s*(.+)/i);
+      if (mAgent) asset = mAgent[1].split(/\\r?\\n/)[0].trim();
+
+      // 2) Taglia tutto da "--- Full log ---" in poi
+      let descClean = desc;
+      const cutIdx = descClean.indexOf('--- Full log ---');
+      if (cutIdx >= 0) descClean = descClean.slice(0, cutIdx);
+      descClean = descClean.replace(/\\s+$/,'').trim();
+      cells[idxDesc] = descClean;
+
+      // Inserisci Asset dopo Descrizione
+      const outCells = [...cells];
+      if (idxDesc >= 0) outCells.splice(idxDesc + 1, 0, asset);
+      else outCells.push(asset);
+
+      outRows.push(outCells);
+    }
+
+    // Workbook
+    const ws = window.XLSX.utils.aoa_to_sheet(outRows);
+    ws['!cols'] = outHeaders.map(h => {
+      const low = h.toLowerCase();
+      if (low === 'descrizione') return { wch: 60 };
+      if (low === 'titolo') return { wch: 45 };
+      if (low === 'asset') return { wch: 32 };
+      if (low === 'elementi associati') return { wch: 20 };
+      return { wch: 16 };
+    });
+
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, ws, 'GLPI');
+    const wbout = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+
+    const nRecord = outRows.length - 1;
+    document.getElementById('glpi-info').textContent = `${nRecord} record elaborati · descrizione ripulita · colonna "Asset" aggiunta.`;
+    const btn = document.getElementById('glpi-dl-btn');
+    btn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'GLPI_' + new Date().toISOString().substring(0,10) + '.xlsx';
+      a.click();
+    };
+    document.getElementById('glpi-download').style.display = 'block';
+    document.getElementById('glpi-download').scrollIntoView({ behavior:'smooth', block:'nearest' });
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
 function _parseExcel(file) {
   const reader = new FileReader();
   reader.onload = e => {
@@ -2079,11 +2220,14 @@ function _buildDocxNow(d) {
     rows: [alertHeaderRow, ...alertDataRows]
   });
 
-  // ── Tabelle Zabbix Export DIVISE PER SEVERITY ─────────
-  let zabbixBlocks = [];
+  // ── Tabella Zabbix Export ─────────────────────────────
+  let zabbixTableEl = null;
   if (d.excelRows && d.excelRows.length > 1) {
     const headers = d.excelRows[0];
-    const allRows = d.excelRows.slice(1);
+    const rows = d.excelRows.slice(1);
+    const colCount = headers.length;
+    const colW = Math.floor(W / colCount);
+    const colWidths = headers.map((_,i) => i === colCount-1 ? W - colW*(colCount-1) : colW);
 
     // Converti timestamp numerico in data leggibile
     function excelDateToStr(val) {
@@ -2098,101 +2242,39 @@ function _buildDocxNow(d) {
     }
 
     const timeIdx = headers.findIndex(h => h === 'Time');
-    const sevIdx  = headers.findIndex(h => h === 'Severity');
 
-    // Colonne con "Action taken" in fondo
+    // Aggiungi colonna "Action taken" dopo le colonne esistenti
     const extHeaders = [...headers, 'Action taken'];
     const baseColW = Math.floor(W / extHeaders.length);
     const extColWidths = extHeaders.map((_,i) => i === extHeaders.length-1 ? W - baseColW*(extHeaders.length-1) : baseColW);
 
-    // Ordine severity richiesto + mappatura nomi Zabbix
-    // Zabbix usa: Disaster, High, Average, Warning, Information, Not classified
-    // Richiesta utente: Critical, High, Medium, Low, Warning
-    const severityGroups = [
-      { label: 'Critical', match: ['critical','disaster'],        color: '9b1c2e' },
-      { label: 'High',     match: ['high'],                       color: 'c0394f' },
-      { label: 'Medium',   match: ['medium','average'],           color: 'e07b2a' },
-      { label: 'Low',      match: ['low','information','info'],    color: '2563a8' },
-      { label: 'Warning',  match: ['warning'],                    color: 'b07d10' },
-    ];
-
-    // Raggruppa le righe per severity
-    function rowSeverity(row) {
-      return sevIdx >= 0 ? String(row[sevIdx]||'').trim().toLowerCase() : '';
-    }
-
-    const usate = new Set();
-
-    severityGroups.forEach(grp => {
-      const groupRows = allRows.filter(row => {
-        const s = rowSeverity(row);
-        return grp.match.includes(s);
-      });
-      if (groupRows.length === 0) return;
-      groupRows.forEach(r => usate.add(r));
-
-      // Titolo gruppo severity
-      zabbixBlocks.push(new Paragraph({
-        spacing:{before:260,after:60},
-        children:[
-          new TextRun({text: grp.label, bold:true, size:22, font:"Arial", color: grp.color}),
-          new TextRun({text: `   (${groupRows.length})`, bold:false, size:18, font:"Arial", color:"8890b0"})
-        ]
-      }));
-
-      // Tabella del gruppo
-      const tbl = new Table({
-        width: { size: W, type: WidthType.DXA },
-        columnWidths: extColWidths,
-        rows: [
-          new TableRow({ children: extHeaders.map((h,i) => hdrCell(h, extColWidths[i])) }),
-          ...groupRows.map((row, ri) => new TableRow({ children: [
-            ...row.map((val, ci) => {
-              const displayVal = ci === timeIdx ? excelDateToStr(val) : String(val||'');
-              const isSev = ci === sevIdx;
-              return cell(displayVal, {
-                w: extColWidths[ci],
-                bg: ri%2===0?GRAY:WHITE,
-                color: isSev ? grp.color : NAVY,
-                bold: isSev,
-                size: 16
-              });
-            }),
-            cell('Checked - No action needed', {
-              w: extColWidths[extColWidths.length-1],
+    zabbixTableEl = new Table({
+      width: { size: W, type: WidthType.DXA },
+      columnWidths: extColWidths,
+      rows: [
+        new TableRow({ children: extHeaders.map((h,i) => hdrCell(h, extColWidths[i])) }),
+        ...rows.map((row, ri) => new TableRow({ children: [
+          ...row.map((val, ci) => {
+            const displayVal = ci === timeIdx ? excelDateToStr(val) : String(val||'');
+            const sevColor = displayVal==='High'?'c0394f': displayVal==='Average'?'e07b2a': displayVal==='Warning'?'b07d10': NAVY;
+            const isSev = headers[ci]==='Severity';
+            return cell(displayVal, {
+              w: extColWidths[ci],
               bg: ri%2===0?GRAY:WHITE,
-              color: '1a7a45',
+              color: isSev ? sevColor : NAVY,
+              bold: isSev && (displayVal==='High'),
               size: 16
-            })
-          ]}))
-        ]
-      });
-      zabbixBlocks.push(tbl);
+            });
+          }),
+          cell('Checked - No action needed', {
+            w: extColWidths[extColWidths.length-1],
+            bg: ri%2===0?GRAY:WHITE,
+            color: '1a7a45',
+            size: 16
+          })
+        ]}))
+      ]
     });
-
-    // Severity non riconosciute → gruppo "Altro"
-    const altreRows = allRows.filter(r => !usate.has(r));
-    if (altreRows.length > 0) {
-      zabbixBlocks.push(new Paragraph({
-        spacing:{before:260,after:60},
-        children:[new TextRun({text: 'Altro', bold:true, size:22, font:"Arial", color: NAVY})]
-      }));
-      const tbl = new Table({
-        width: { size: W, type: WidthType.DXA },
-        columnWidths: extColWidths,
-        rows: [
-          new TableRow({ children: extHeaders.map((h,i) => hdrCell(h, extColWidths[i])) }),
-          ...altreRows.map((row, ri) => new TableRow({ children: [
-            ...row.map((val, ci) => {
-              const displayVal = ci === timeIdx ? excelDateToStr(val) : String(val||'');
-              return cell(displayVal, { w: extColWidths[ci], bg: ri%2===0?GRAY:WHITE, color: NAVY, size: 16 });
-            }),
-            cell('Checked - No action needed', { w: extColWidths[extColWidths.length-1], bg: ri%2===0?GRAY:WHITE, color: '1a7a45', size: 16 })
-          ]}))
-        ]
-      });
-      zabbixBlocks.push(tbl);
-    }
   }
 
   // ── Documento ──────────────────────────────────────────
@@ -2208,9 +2290,9 @@ function _buildDocxNow(d) {
         ...headerChildren,
         ...intro,
         alertTable,
-        ...(zabbixBlocks.length > 0 ? [
-          new Paragraph({ spacing:{before:300,after:40}, children:[new TextRun({text:'Zabbix — Problems Export', bold:true, size:24, font:"Arial", color:TEAL})] }),
-          ...zabbixBlocks,
+        ...(zabbixTableEl ? [
+          new Paragraph({ spacing:{before:300,after:80}, children:[new TextRun({text:'Zabbix — Problems Export', bold:true, size:22, font:"Arial", color:TEAL})] }),
+          zabbixTableEl,
         ] : []),
       ]
     }]
