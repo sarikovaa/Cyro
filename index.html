@@ -1924,10 +1924,8 @@ function _parseGlpi(file) {
     let headers = rows[0].map(h => (h||'').trim()).filter(h => h !== '');
     const idxDesc = headers.findIndex(h => h.toLowerCase() === 'descrizione');
 
-    // Nuovo header: "Asset" subito dopo Descrizione
-    const outHeaders = [...headers];
-    if (idxDesc >= 0) outHeaders.splice(idxDesc + 1, 0, 'Asset');
-    else outHeaders.push('Asset');
+    // Nuovo header: "Asset" come ULTIMA colonna (in fondo)
+    const outHeaders = [...headers, 'Asset'];
 
     const outRows = [outHeaders];
 
@@ -1950,12 +1948,8 @@ function _parseGlpi(file) {
       descClean = descClean.replace(/\s+$/,'').trim();
       cells[idxDesc] = descClean;
 
-      // Inserisci Asset dopo Descrizione
-      const outCells = [...cells];
-      if (idxDesc >= 0) outCells.splice(idxDesc + 1, 0, asset);
-      else outCells.push(asset);
-
-      outRows.push(outCells);
+      // Asset in fondo alla riga
+      outRows.push([...cells, asset]);
     }
 
     // Workbook
