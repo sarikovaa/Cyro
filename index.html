@@ -1956,12 +1956,18 @@ function _parseGlpi(file) {
     const ws = window.XLSX.utils.aoa_to_sheet(outRows);
     ws['!cols'] = outHeaders.map(h => {
       const low = h.toLowerCase();
-      if (low === 'descrizione') return { wch: 60 };
-      if (low === 'titolo') return { wch: 45 };
-      if (low === 'asset') return { wch: 32 };
-      if (low === 'elementi associati') return { wch: 20 };
+      if (low === 'descrizione') return { wch: 70 };
+      if (low === 'titolo') return { wch: 60 };
+      if (low === 'asset') return { wch: 34 };
+      if (low === 'elementi associati') return { wch: 16 };
+      if (low === 'ultima modifica' || low === 'data di apertura') return { wch: 17 };
+      if (low === 'categoria') return { wch: 16 };
+      if (low === 'id' || low === 'stato' || low === 'priorità') return { wch: 11 };
       return { wch: 16 };
     });
+    // Autofiltro sulla riga header (frecce a tendina)
+    const lastCol = window.XLSX.utils.encode_col(outHeaders.length - 1);
+    ws['!autofilter'] = { ref: 'A1:' + lastCol + '1' };
 
     const wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, 'GLPI');
@@ -2012,20 +2018,24 @@ function _coloraHeaderXlsx(arrbuf, nCol, cb) {
         '</fills>' +
         '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
         '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-        '<cellXfs count="2">' +
+        '<cellXfs count="3">' +
           '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-          '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
+          '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+          '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>' +
         '</cellXfs>' +
         '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
         '</styleSheet>';
       files['xl/styles.xml'] = strToU8(stylesXml);
 
-      // sheet: assegna s="1" alle celle della prima riga (r="1")
+      // sheet: header (r="1") → stile 1 (teal); altre righe → stile 2 (wrap + top)
       const sheetPath = Object.keys(files).find(p => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
       if (sheetPath) {
         let xml = strFromU8(files[sheetPath]);
+        // tutte le celle dati: aggiungi s="2"
+        xml = xml.replace(/<c(\s)/g, '<c s="2"$1');
+        // header: forza s="1" sulle celle della prima riga
         xml = xml.replace(/<row[^>]*r="1"[^>]*>[\s\S]*?<\/row>/, function(rowXml){
-          return rowXml.replace(/<c(\s)/g, '<c s="1"$1');
+          return rowXml.replace(/<c s="2"/g, '<c s="1"');
         });
         files[sheetPath] = strToU8(xml);
       }
