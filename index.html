@@ -1868,19 +1868,35 @@ function previewExcel(input) {
 /* ════════════════════════════════════════
    CONVERTITORE GLPI CSV → EXCEL
 ════════════════════════════════════════ */
+function _loadScriptMulti(urls, onload, onerror) {
+  let i = 0;
+  function tryNext() {
+    if (i >= urls.length) { onerror && onerror(); return; }
+    const s = document.createElement('script');
+    s.src = urls[i++];
+    s.onload = onload;
+    s.onerror = tryNext;
+    document.head.appendChild(s);
+  }
+  tryNext();
+}
+
 function convertiGlpi(input) {
   const file = input.files[0];
   if (!file) return;
   document.getElementById('glpi-name').textContent = file.name;
+  document.getElementById('glpi-download').style.display = 'none';
 
-  if (!window.XLSX) {
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
-    s.onload = () => _parseGlpi(file);
-    document.head.appendChild(s);
-  } else {
-    _parseGlpi(file);
-  }
+  // Carica XLSX (con fallback CDN), poi avvia il parsing
+  if (window.XLSX) { _parseGlpi(file); return; }
+  _loadScriptMulti([
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+  ], () => _parseGlpi(file), () => {
+    document.getElementById('glpi-info').textContent = '⚠️ Impossibile caricare la libreria per generare l\\'Excel. Riprova o controlla la connessione.';
+    document.getElementById('glpi-download').style.display = 'block';
+  });
 }
 
 // Parser CSV robusto (gestisce virgolette, separatore ';', newline dentro i campi)
@@ -1911,7 +1927,12 @@ function _parseCsvSemicolon(text) {
 
 function _parseGlpi(file) {
   const reader = new FileReader();
+  reader.onerror = () => {
+    document.getElementById('glpi-info').textContent = '⚠️ Impossibile leggere il file.';
+    document.getElementById('glpi-download').style.display = 'block';
+  };
   reader.onload = e => {
+   try {
     const text = e.target.result;
     const rows = _parseCsvSemicolon(text);
     if (rows.length < 2) {
@@ -1990,6 +2011,10 @@ function _parseGlpi(file) {
       document.getElementById('glpi-download').style.display = 'block';
       document.getElementById('glpi-download').scrollIntoView({ behavior:'smooth', block:'nearest' });
     });
+   } catch(err) {
+    document.getElementById('glpi-info').textContent = '⚠️ Errore durante la conversione: ' + (err && err.message ? err.message : err);
+    document.getElementById('glpi-download').style.display = 'block';
+   }
   };
   reader.readAsText(file, 'utf-8');
 }
@@ -2072,11 +2097,14 @@ function _coloraHeaderXlsx(arrbuf, nCol, cb) {
   }
 
   if (window.fflate) { doWork(); return; }
-  const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js';
-  s.onload = doWork;
-  s.onerror = () => cb(new Blob([arrbuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  document.head.appendChild(s);
+  _loadScriptMulti([
+    'https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js',
+    'https://unpkg.com/fflate@0.8.2/umd/index.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/fflate/0.8.2/umd/index.js'
+  ], doWork, () => {
+    // fflate non disponibile: scarica l'Excel senza colore header
+    cb(new Blob([arrbuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  });
 }
 
 function _parseExcel(file) {
