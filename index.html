@@ -835,6 +835,15 @@
         <div class="upload-label">Carica il file .xlsx esportato da Zabbix</div>
         <div class="upload-name" id="excel-name">Clicca per caricare</div>
       </div>
+      <!-- RAGGRUPPAMENTO PROBLEMI RIPETUTI -->
+      <div style="margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;">
+          <input type="checkbox" id="raggruppa-on" checked> 🧩 Raggruppa problemi ripetuti
+        </label>
+        <span style="font-size:11px;color:var(--text-muted);">da
+          <input type="number" id="raggruppa-soglia" value="3" min="2" max="99" style="width:56px;padding:3px 6px;"> occorrenze risolte con lo stesso problema.
+          I problemi ancora aperti restano sempre in riga singola.</span>
+      </div>
       <!-- TIPO TURNO -->
       <div style="margin-top:16px;">
         <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">📅 Tipo turno</div>
@@ -1942,7 +1951,11 @@ function _parseGlpi(file) {
     }
 
     // Header: rimuovi colonne vuote finali
-    let headers = rows[0].map(h => (h||'').trim()).filter(h => h !== '');
+    const allHeaders = rows[0].map(h => (h||'').trim()).filter(h => h !== '');
+    // Colonne da escludere dal file convertito
+    const GLPI_EXCLUDE = ['elementi associati'];
+    const keepIdx = allHeaders.map((h, i) => GLPI_EXCLUDE.includes(h.toLowerCase()) ? -1 : i).filter(i => i >= 0);
+    const headers = keepIdx.map(i => allHeaders[i]);
     const idxDesc = headers.findIndex(h => h.toLowerCase() === 'descrizione');
 
     // Nuovo header: "Asset" come ULTIMA colonna (in fondo)
@@ -1954,7 +1967,7 @@ function _parseGlpi(file) {
       const row = rows[r];
       if (row.every(c => (c||'').trim() === '')) continue;
 
-      const cells = headers.map((_, i) => row[i] !== undefined ? row[i] : '');
+      const cells = keepIdx.map(i => row[i] !== undefined ? row[i] : '');
       const desc = cells[idxDesc] || '';
 
       // 1) Estrai la sezione Agent
@@ -1980,7 +1993,6 @@ function _parseGlpi(file) {
       if (low === 'descrizione') return { wch: 70 };
       if (low === 'titolo') return { wch: 60 };
       if (low === 'asset') return { wch: 34 };
-      if (low === 'elementi associati') return { wch: 16 };
       if (low === 'ultima modifica' || low === 'data di apertura') return { wch: 17 };
       if (low === 'categoria') return { wch: 16 };
       if (low === 'id' || low === 'stato' || low === 'priorità') return { wch: 11 };
@@ -2169,6 +2181,110 @@ function fmtDataIT(d) {
   return `${g}/${m}/${y}`;
 }
 
+/* ════════════════════════════════════════
+   RAGGRUPPAMENTO PROBLEMI RIPETUTI (Zabbix)
+════════════════════════════════════════ */
+function _normProblem(p) {
+  // Toglie la parte variabile: "Homepage-Noc non raggiungibile" -> "Homepage-* non raggiungibile",
+  // "Oracle: 'PDBFSE' TBS ..." -> "Oracle: '*' TBS ..."
+  return String(p || '').trim()
+    .replace(/^([A-Za-z0-9_]+)-\S+/, '$1-*')
+    .replace(/'[^']*'/g, "'*'")
+    .replace(/\s+/g, ' ');
+}
+function _parseDurSec(s) {
+  let t = 0, m; const re = /(\d+)\s*([dhms])/g, mul = { d: 86400, h: 3600, m: 60, s: 1 };
+  s = String(s || '');
+  while ((m = re.exec(s))) t += parseInt(m[1], 10) * mul[m[2]];
+  return t;
+}
+function _fmtDurSec(t) {
+  t = Math.round(t);
+  const d = Math.floor(t / 86400), h = Math.floor(t % 86400 / 3600), mi = Math.floor(t % 3600 / 60), s = t % 60;
+  return [d && d + 'd', h && h + 'h', mi && mi + 'm', (s || !t) && s + 's'].filter(Boolean).join(' ');
+}
+function _parseTs(val) {
+  if (val === null || val === undefined || val === '') return NaN;
+  const str = String(val).trim(), num = parseFloat(str);
+  if (!isNaN(num) && String(num) === str && num > 40000 && num < 60000) return (num - 25569) * 86400000;
+  let m;
+  if ((m = str.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i))) {
+    let h = +m[4];
+    if (m[7]) { const pm = m[7].toUpperCase() === 'PM'; if (pm && h < 12) h += 12; if (!pm && h === 12) h = 0; }
+    return Date.UTC(+m[1], +m[2] - 1, +m[3], h, +m[5], +(m[6] || 0));
+  }
+  if ((m = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})[, ]+(\d{1,2}):(\d{2})(?::(\d{2}))?/)))
+    return Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +(m[6] || 0));
+  return NaN;
+}
+function _fmtTs(ms) {
+  const d = new Date(ms), p = n => String(n).padStart(2, '0');
+  return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+}
+function _fmtRange(a, b) {
+  const x = _fmtTs(a), y = _fmtTs(b);
+  if (x === y) return x;
+  return x.slice(0, 5) === y.slice(0, 5) ? `${x} → ${y.slice(6)}` : `${x} → ${y}`;
+}
+
+/* Riceve le righe di un gruppo di severity e restituisce righe della stessa forma:
+   quelle ripetute (>= soglia, già RESOLVED, stesso problema) diventano una riga sola.
+   I problemi ancora aperti non vengono mai raggruppati. */
+function raggruppaProblemi(rows, headers, soglia) {
+  const ix = n => headers.findIndex(h => h === n);
+  const iH = ix('Host'), iP = ix('Problem'), iS = ix('Status'), iT = ix('Time'), iR = ix('Recovery time'), iD = ix('Duration');
+  if (iH < 0 || iP < 0) return rows;
+  const isOpen = r => iS >= 0 && String(r[iS] || '').trim().toUpperCase() !== 'RESOLVED';
+  // Evento "di massa": stesso problema su molti host diversi (es. patching) -> un'unica riga per problema.
+  // Altrimenti si raggruppa per problema + host (ricorrenze sullo stesso host), così durate e host restano coerenti.
+  const MASS_HOSTS = 5;
+  const hostsPerProb = new Map();
+  rows.forEach(r => {
+    if (isOpen(r)) return;
+    const k = _normProblem(r[iP]);
+    if (!hostsPerProb.has(k)) hostsPerProb.set(k, new Set());
+    hostsPerProb.get(k).add(String(r[iH] || '').trim());
+  });
+  const keyOf = r => {
+    const k = _normProblem(r[iP]);
+    return hostsPerProb.get(k).size >= MASS_HOSTS ? k : k + '\u0000' + String(r[iH] || '').trim();
+  };
+  const buckets = new Map();
+  rows.forEach(r => { if (isOpen(r)) return; const k = keyOf(r); if (!buckets.has(k)) buckets.set(k, []); buckets.get(k).push(r); });
+
+  const done = new Set(), out = [];
+  rows.forEach(r => {
+    if (isOpen(r)) { out.push(r); return; }
+    const k = keyOf(r), b = buckets.get(k);
+    if (b.length < soglia) { out.push(r); return; }
+    if (done.has(k)) return;
+    done.add(k);
+
+    const g = headers.map(() => '');
+    const first = b[0];
+    headers.forEach((h, i) => { if (h === 'Severity') g[i] = first[i]; });
+    const hosts = [...new Set(b.map(x => String(x[iH] || '').trim()).filter(Boolean))];
+    g[iH] = hosts.join('\n');
+    g[iP] = `${_normProblem(first[iP])}  (×${b.length})`;
+    if (iS >= 0) g[iS] = 'RESOLVED';
+    if (iT >= 0) {
+      const ts = b.map(x => _parseTs(x[iT])).filter(n => !isNaN(n));
+      g[iT] = ts.length ? _fmtRange(Math.min(...ts), Math.max(...ts)) : String(first[iT] || '');
+    }
+    if (iR >= 0) {
+      const rc = b.map(x => _parseTs(x[iR])).filter(n => !isNaN(n));
+      g[iR] = rc.length ? 'fino a ' + _fmtTs(Math.max(...rc)) : '';
+    }
+    if (iD >= 0) {
+      const du = b.map(x => _parseDurSec(x[iD]));
+      const mn = Math.min(...du), mx = Math.max(...du), av = du.reduce((a, c) => a + c, 0) / du.length;
+      g[iD] = mn === mx ? _fmtDurSec(mn) : `media ${_fmtDurSec(av)} (max ${_fmtDurSec(mx)})`;
+    }
+    out.push(g);
+  });
+  return out;
+}
+
 async function generaWordTurno() {
   // Raccogli dati
   const dataVal    = document.getElementById('t-data').value;
@@ -2196,7 +2312,9 @@ async function generaWordTurno() {
   const excelRows = (window._excelRows && window._excelRows.length > 0) ? window._excelRows : [];
 
   // Salva payload e genera
-  const payload = JSON.stringify({ dataVal, clienteVal, logo1b64, logo2b64, alertRows, excelRows });
+  const raggruppa = !!(document.getElementById('raggruppa-on') || {}).checked;
+  const soglia = Math.max(2, parseInt((document.getElementById('raggruppa-soglia') || {}).value, 10) || 3);
+  const payload = JSON.stringify({ dataVal, clienteVal, logo1b64, logo2b64, alertRows, excelRows, raggruppa, soglia });
   window._turnoPayload = payload;
   buildDocx(JSON.parse(payload));
 }
@@ -2233,10 +2351,10 @@ function _buildDocxNow(d) {
       shading: { fill: bg, type: ShadingType.CLEAR },
       margins: { top: 80, bottom: 80, left: 120, right: 120 },
       verticalAlign: vAlign,
-      children: [new Paragraph({
+      children: String(text||'').split('\n').map(line => new Paragraph({
         alignment: align,
-        children: [new TextRun({ text: String(text||''), bold, size, font: "Arial", color })]
-      })]
+        children: [new TextRun({ text: line, bold, size, font: "Arial", color })]
+      }))
     });
   }
 
@@ -2339,6 +2457,7 @@ function _buildDocxNow(d) {
 
   // ── Tabelle Zabbix Export DIVISE PER SEVERITY ─────────
   let zabbixBlocks = [];
+  let zabbixSummary = null;
   if (d.excelRows && d.excelRows.length > 1) {
     const headers = d.excelRows[0];
     const allRows = d.excelRows.slice(1);
@@ -2377,6 +2496,7 @@ function _buildDocxNow(d) {
     }
 
     const usate = new Set();
+    let totEventi = 0, totRighe = 0;
 
     function buildGroupTable(groupRows, color) {
       return new Table({
@@ -2411,6 +2531,8 @@ function _buildDocxNow(d) {
       const groupRows = allRows.filter(row => grp.match.includes(rowSeverity(row)));
       if (groupRows.length === 0) return;
       groupRows.forEach(r => usate.add(r));
+      const shown = d.raggruppa ? raggruppaProblemi(groupRows, headers, d.soglia || 3) : groupRows;
+      totEventi += groupRows.length; totRighe += shown.length;
       zabbixBlocks.push(new Paragraph({
         spacing:{before:260,after:60},
         children:[
@@ -2418,11 +2540,21 @@ function _buildDocxNow(d) {
           new TextRun({text: `   (${groupRows.length})`, bold:false, size:18, font:"Arial", color:"8890b0"})
         ]
       }));
-      zabbixBlocks.push(buildGroupTable(groupRows, grp.color));
+      zabbixBlocks.push(buildGroupTable(shown, grp.color));
     });
 
     // Severity non riconosciute → gruppo "Altro"
     const altreRows = allRows.filter(r => !usate.has(r));
+    totEventi += altreRows.length; totRighe += altreRows.length;
+    if (d.raggruppa) {
+      zabbixSummary = new Paragraph({
+        spacing:{before:0,after:60},
+        children:[new TextRun({
+          text: `Problemi ripetuti raggruppati (≥ ${d.soglia || 3} occorrenze risolte): ${totEventi} eventi → ${totRighe} righe. I numeri tra parentesi accanto alla severity indicano gli eventi totali.`,
+          italics:true, size:16, font:"Arial", color:"5a6a7e"
+        })]
+      });
+    }
     if (altreRows.length > 0) {
       zabbixBlocks.push(new Paragraph({
         spacing:{before:260,after:60},
@@ -2447,6 +2579,7 @@ function _buildDocxNow(d) {
         alertTable,
         ...(zabbixBlocks.length > 0 ? [
           new Paragraph({ spacing:{before:300,after:40}, children:[new TextRun({text:'Zabbix — Problems Export', bold:true, size:24, font:"Arial", color:TEAL})] }),
+          ...(zabbixSummary ? [zabbixSummary] : []),
           ...zabbixBlocks,
         ] : []),
       ]
