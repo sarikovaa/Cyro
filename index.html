@@ -841,8 +841,8 @@
           <input type="checkbox" id="raggruppa-on" checked> 🧩 Raggruppa problemi ripetuti
         </label>
         <span style="font-size:11px;color:var(--text-muted);">da
-          <input type="number" id="raggruppa-soglia" value="3" min="2" max="99" style="width:56px;padding:3px 6px;"> occorrenze risolte con lo stesso problema.
-          I problemi ancora aperti restano sempre in riga singola.</span>
+          <input type="number" id="raggruppa-soglia" value="2" min="2" max="99" style="width:56px;padding:3px 6px;"> occorrenze dello stesso problema.
+          Gli aperti si raggruppano solo tra loro, mai con i risolti.</span>
       </div>
       <!-- TIPO TURNO -->
       <div style="margin-top:16px;">
@@ -2240,21 +2240,19 @@ function raggruppaProblemi(rows, headers, soglia) {
   const MASS_HOSTS = 5;
   const hostsPerProb = new Map();
   rows.forEach(r => {
-    if (isOpen(r)) return;
-    const k = _normProblem(r[iP]);
+    const k = _normProblem(r[iP]) + (isOpen(r) ? '\u0001O' : '\u0001R');
     if (!hostsPerProb.has(k)) hostsPerProb.set(k, new Set());
     hostsPerProb.get(k).add(String(r[iH] || '').trim());
   });
   const keyOf = r => {
-    const k = _normProblem(r[iP]);
+    const k = _normProblem(r[iP]) + (isOpen(r) ? '\u0001O' : '\u0001R');
     return hostsPerProb.get(k).size >= MASS_HOSTS ? k : k + '\u0000' + String(r[iH] || '').trim();
   };
   const buckets = new Map();
-  rows.forEach(r => { if (isOpen(r)) return; const k = keyOf(r); if (!buckets.has(k)) buckets.set(k, []); buckets.get(k).push(r); });
+  rows.forEach(r => { const k = keyOf(r); if (!buckets.has(k)) buckets.set(k, []); buckets.get(k).push(r); });
 
   const done = new Set(), out = [];
   rows.forEach(r => {
-    if (isOpen(r)) { out.push(r); return; }
     const k = keyOf(r), b = buckets.get(k);
     if (b.length < soglia) { out.push(r); return; }
     if (done.has(k)) return;
@@ -2266,12 +2264,13 @@ function raggruppaProblemi(rows, headers, soglia) {
     const hosts = [...new Set(b.map(x => String(x[iH] || '').trim()).filter(Boolean))];
     g[iH] = hosts.join('\n');
     g[iP] = `${_normProblem(first[iP])}  (×${b.length})`;
-    if (iS >= 0) g[iS] = 'RESOLVED';
+    const gruppoAperto = isOpen(first);
+    if (iS >= 0) g[iS] = gruppoAperto ? 'PROBLEM' : 'RESOLVED';
     if (iT >= 0) {
       const ts = b.map(x => _parseTs(x[iT])).filter(n => !isNaN(n));
       g[iT] = ts.length ? _fmtRange(Math.min(...ts), Math.max(...ts)) : String(first[iT] || '');
     }
-    if (iR >= 0) {
+    if (iR >= 0 && !gruppoAperto) {
       const rc = b.map(x => _parseTs(x[iR])).filter(n => !isNaN(n));
       g[iR] = rc.length ? 'fino a ' + _fmtTs(Math.max(...rc)) : '';
     }
@@ -2313,7 +2312,7 @@ async function generaWordTurno() {
 
   // Salva payload e genera
   const raggruppa = !!(document.getElementById('raggruppa-on') || {}).checked;
-  const soglia = Math.max(2, parseInt((document.getElementById('raggruppa-soglia') || {}).value, 10) || 3);
+  const soglia = Math.max(2, parseInt((document.getElementById('raggruppa-soglia') || {}).value, 10) || 2);
   const payload = JSON.stringify({ dataVal, clienteVal, logo1b64, logo2b64, alertRows, excelRows, raggruppa, soglia });
   window._turnoPayload = payload;
   buildDocx(JSON.parse(payload));
@@ -2531,7 +2530,7 @@ function _buildDocxNow(d) {
       const groupRows = allRows.filter(row => grp.match.includes(rowSeverity(row)));
       if (groupRows.length === 0) return;
       groupRows.forEach(r => usate.add(r));
-      const shown = d.raggruppa ? raggruppaProblemi(groupRows, headers, d.soglia || 3) : groupRows;
+      const shown = d.raggruppa ? raggruppaProblemi(groupRows, headers, d.soglia || 2) : groupRows;
       totEventi += groupRows.length; totRighe += shown.length;
       zabbixBlocks.push(new Paragraph({
         spacing:{before:260,after:60},
@@ -2550,7 +2549,7 @@ function _buildDocxNow(d) {
       zabbixSummary = new Paragraph({
         spacing:{before:0,after:60},
         children:[new TextRun({
-          text: `Problemi ripetuti raggruppati (≥ ${d.soglia || 3} occorrenze risolte): ${totEventi} eventi → ${totRighe} righe. I numeri tra parentesi accanto alla severity indicano gli eventi totali.`,
+          text: `Problemi ripetuti raggruppati (≥ ${d.soglia || 2} occorrenze): ${totEventi} eventi → ${totRighe} righe. I numeri tra parentesi accanto alla severity indicano gli eventi totali.`,
           italics:true, size:16, font:"Arial", color:"5a6a7e"
         })]
       });
