@@ -2227,59 +2227,79 @@ function _fmtRange(a, b) {
   return x.slice(0, 5) === y.slice(0, 5) ? `${x} → ${y.slice(6)}` : `${x} → ${y}`;
 }
 
-/* Riceve le righe di un gruppo di severity e restituisce righe della stessa forma:
-   quelle ripetute (>= soglia, già RESOLVED, stesso problema) diventano una riga sola.
-   I problemi ancora aperti non vengono mai raggruppati. */
+/* Raggruppa le righe di una severity. Stesso problema + stesso stato (aperto/risolto):
+   1) EVENTO CORRELATO: eventi ravvicinati nel tempo (tra uno e il successivo al massimo FINESTRA_MIN minuti),
+      su qualunque host, si uniscono in una riga. Eventi lontani nel tempo restano in righe separate.
+   2) RICORRENZA SULLO STESSO HOST: gli eventi rimasti fuori, ripetuti sullo stesso host, si uniscono
+      (la riga mostra l'intervallo di tempo e il numero di occorrenze). */
+const FINESTRA_MIN = 60;
+
 function raggruppaProblemi(rows, headers, soglia) {
   const ix = n => headers.findIndex(h => h === n);
   const iH = ix('Host'), iP = ix('Problem'), iS = ix('Status'), iT = ix('Time'), iR = ix('Recovery time'), iD = ix('Duration');
   if (iH < 0 || iP < 0) return rows;
   const isOpen = r => iS >= 0 && String(r[iS] || '').trim().toUpperCase() !== 'RESOLVED';
-  // Evento "di massa": stesso problema su molti host diversi (es. patching) -> un'unica riga per problema.
-  // Altrimenti si raggruppa per problema + host (ricorrenze sullo stesso host), così durate e host restano coerenti.
-  const MASS_HOSTS = 5;
-  const hostsPerProb = new Map();
-  rows.forEach(r => {
-    const k = _normProblem(r[iP]) + (isOpen(r) ? '\u0001O' : '\u0001R');
-    if (!hostsPerProb.has(k)) hostsPerProb.set(k, new Set());
-    hostsPerProb.get(k).add(String(r[iH] || '').trim());
+  const keyOf = r => _normProblem(r[iP]) + (isOpen(r) ? '\u0001O' : '\u0001R');
+  const hostOf = r => String(r[iH] || '').trim();
+
+  const gid = new Array(rows.length).fill(-1), groups = [];
+  const nuovoGruppo = idxs => { const id = groups.length; groups.push(idxs); idxs.forEach(i => gid[i] = id); };
+
+  const byKey = new Map();
+  rows.forEach((r, i) => { const k = keyOf(r); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(i); });
+
+  // 1) eventi correlati nel tempo (catena: ogni evento entro la finestra dal precedente)
+  byKey.forEach(idxs => {
+    const ev = idxs.map(i => ({ i, t: iT >= 0 ? _parseTs(rows[i][iT]) : NaN }))
+                   .filter(x => !isNaN(x.t)).sort((a, b) => a.t - b.t);
+    let cl = [];
+    const chiudi = () => { if (cl.length >= soglia) nuovoGruppo(cl.map(x => x.i)); cl = []; };
+    ev.forEach(x => { if (cl.length && x.t - cl[cl.length - 1].t > FINESTRA_MIN * 60000) chiudi(); cl.push(x); });
+    chiudi();
   });
-  const keyOf = r => {
-    const k = _normProblem(r[iP]) + (isOpen(r) ? '\u0001O' : '\u0001R');
-    return hostsPerProb.get(k).size >= MASS_HOSTS ? k : k + '\u0000' + String(r[iH] || '').trim();
-  };
-  const buckets = new Map();
-  rows.forEach(r => { const k = keyOf(r); if (!buckets.has(k)) buckets.set(k, []); buckets.get(k).push(r); });
 
-  const done = new Set(), out = [];
-  rows.forEach(r => {
-    const k = keyOf(r), b = buckets.get(k);
-    if (b.length < soglia) { out.push(r); return; }
-    if (done.has(k)) return;
-    done.add(k);
+  // 2) ricorrenze sullo stesso host (anche a ore di distanza)
+  const byHost = new Map();
+  rows.forEach((r, i) => {
+    if (gid[i] >= 0) return;
+    const k = keyOf(r) + '\u0002' + hostOf(r);
+    if (!byHost.has(k)) byHost.set(k, []);
+    byHost.get(k).push(i);
+  });
+  byHost.forEach(idxs => { if (idxs.length >= soglia) nuovoGruppo(idxs); });
 
+  const costruisci = b => {
     const g = headers.map(() => '');
     const first = b[0];
     headers.forEach((h, i) => { if (h === 'Severity') g[i] = first[i]; });
-    const hosts = [...new Set(b.map(x => String(x[iH] || '').trim()).filter(Boolean))];
-    g[iH] = hosts.join('\n');
+    const hc = new Map();
+    b.forEach(x => { const h = hostOf(x); if (h) hc.set(h, (hc.get(h) || 0) + 1); });
+    g[iH] = [...hc].map(([h, n]) => n > 1 ? `${h} (×${n})` : h).join('\n');
     g[iP] = `${_normProblem(first[iP])}  (×${b.length})`;
-    const gruppoAperto = isOpen(first);
-    if (iS >= 0) g[iS] = gruppoAperto ? 'PROBLEM' : 'RESOLVED';
+    const aperto = isOpen(first);
+    if (iS >= 0) g[iS] = aperto ? 'PROBLEM' : 'RESOLVED';
     if (iT >= 0) {
       const ts = b.map(x => _parseTs(x[iT])).filter(n => !isNaN(n));
       g[iT] = ts.length ? _fmtRange(Math.min(...ts), Math.max(...ts)) : String(first[iT] || '');
     }
-    if (iR >= 0 && !gruppoAperto) {
+    if (iR >= 0 && !aperto) {
       const rc = b.map(x => _parseTs(x[iR])).filter(n => !isNaN(n));
       g[iR] = rc.length ? 'fino a ' + _fmtTs(Math.max(...rc)) : '';
     }
     if (iD >= 0) {
       const du = b.map(x => _parseDurSec(x[iD]));
-      const mn = Math.min(...du), mx = Math.max(...du), av = du.reduce((a, c) => a + c, 0) / du.length;
-      g[iD] = mn === mx ? _fmtDurSec(mn) : `media ${_fmtDurSec(av)} (max ${_fmtDurSec(mx)})`;
+      const mn = Math.min(...du), mx = Math.max(...du);
+      g[iD] = mn === mx ? _fmtDurSec(mn) : `${_fmtDurSec(mn)} – ${_fmtDurSec(mx)}`;
     }
-    out.push(g);
+    return g;
+  };
+
+  const done = new Set(), out = [];
+  rows.forEach((r, i) => {
+    if (gid[i] < 0) { out.push(r); return; }
+    if (done.has(gid[i])) return;
+    done.add(gid[i]);
+    out.push(costruisci(groups[gid[i]].map(j => rows[j])));
   });
   return out;
 }
@@ -2549,7 +2569,7 @@ function _buildDocxNow(d) {
       zabbixSummary = new Paragraph({
         spacing:{before:0,after:60},
         children:[new TextRun({
-          text: `Problemi ripetuti raggruppati (≥ ${d.soglia || 2} occorrenze): ${totEventi} eventi → ${totRighe} righe. I numeri tra parentesi accanto alla severity indicano gli eventi totali.`,
+          text: `Problemi ripetuti raggruppati (eventi ravvicinati entro ${FINESTRA_MIN} min o ricorrenti sullo stesso host): ${totEventi} eventi → ${totRighe} righe. I numeri tra parentesi accanto alla severity indicano gli eventi totali.`,
           italics:true, size:16, font:"Arial", color:"5a6a7e"
         })]
       });
